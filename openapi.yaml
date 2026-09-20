@@ -1,0 +1,680 @@
+openapi: 3.1.0
+info:
+  title: Ikke Nihongo BFF API
+  version: 0.1.0
+  description: |
+    Laravel BFF for the Ikke Nihongo training app. Authentication uses Laravel
+    session cookies through Sanctum. Exercise answer keys are never returned
+    until an answer is submitted.
+    Browser clients first call `GET /sanctum/csrf-cookie` with credentials,
+    then send the decoded `XSRF-TOKEN` cookie as `X-XSRF-TOKEN` for every POST,
+    PATCH, or DELETE request.
+servers:
+  - url: https://ikkeapi.fragua.com.ar
+    description: Production
+  - url: http://localhost:8000
+    description: Local development
+tags:
+  - name: Authentication
+  - name: Profile
+  - name: Catalog
+  - name: Sions
+  - name: Progress
+paths:
+  /sanctum/csrf-cookie:
+    get:
+      tags: [Authentication]
+      security: []
+      summary: Initialize the XSRF-TOKEN cookie for the SPA
+      responses:
+        '204': { description: CSRF cookie set }
+  /guest:
+    post:
+      tags: [Authentication]
+      security: []
+      summary: Create and authenticate a throttled guest account
+      responses:
+        '204': { description: Guest authenticated }
+        '429': { description: Too many guest requests }
+  /register:
+    post:
+      tags: [Authentication]
+      security: []
+      summary: Register and start a session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '204': { description: Registered and authenticated }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /login:
+    post:
+      tags: [Authentication]
+      security: []
+      summary: Start a session with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '204': { description: Authenticated }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /logout:
+    post:
+      tags: [Authentication]
+      security: [{ cookieAuth: [] }]
+      summary: End the current session
+      responses:
+        '204': { description: Logged out }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+  /forgot-password:
+    post:
+      tags: [Authentication]
+      security: []
+      summary: Request a password reset link
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '200': { description: Password-reset email result }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /reset-password:
+    post:
+      tags: [Authentication]
+      security: []
+      summary: Reset a password using its emailed token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, email, password, password_confirmation]
+              properties:
+                token: { type: string }
+                email: { type: string, format: email }
+                password: { type: string, format: password }
+                password_confirmation: { type: string, format: password }
+      responses:
+        '200': { description: Password reset result }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /api/user:
+    get:
+      tags: [Profile]
+      security: [{ cookieAuth: [] }]
+      summary: Get the authenticated profile
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+    patch:
+      tags: [Profile]
+      security: [{ cookieAuth: [] }]
+      summary: Update nickname, birthdate, or avatar
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: '#/components/schemas/ProfileUpdateRequest' }
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /api/me:
+    get:
+      tags: [Profile]
+      security: [{ cookieAuth: [] }]
+      summary: Get profile, settings, and statistics
+      responses:
+        '200':
+          description: Current account
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Me' }
+  /api/me/upgrade:
+    post:
+      tags: [Authentication]
+      security: [{ cookieAuth: [] }]
+      summary: Convert an authenticated guest into a permanent account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+      responses:
+        '200': { description: Upgraded user, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '409': { description: Account is not a guest }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /api/me/progress:
+    delete:
+      tags: [Progress]
+      security: [{ cookieAuth: [] }]
+      summary: Delete learning progress but retain the account and settings
+      responses:
+        '204': { description: Progress reset }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+  /api/me/summary:
+    get:
+      tags: [Progress]
+      security: [{ cookieAuth: [] }]
+      summary: Get the home progress summary
+      description: The optional `jlpt` value defaults to N5 and only filters `kanji` and `words`.
+      parameters: [{ $ref: '#/components/parameters/JlptLevel' }]
+      responses:
+        '200':
+          description: Home summary
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HomeSummary' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+  /api/me/stats:
+    get:
+      tags: [Progress]
+      security: [{ cookieAuth: [] }]
+      summary: Get learning statistics
+      responses:
+        '200':
+          description: Current user statistics
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserStats' }
+  /api/me/activity:
+    get:
+      tags: [Progress]
+      security: [{ cookieAuth: [] }]
+      summary: Get daily activity in a date range
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+      responses:
+        '200':
+          description: Activity ordered by date
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/DailyActivity' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /api/me/settings:
+    patch:
+      tags: [Profile]
+      security: [{ cookieAuth: [] }]
+      summary: Update learning preferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SettingsUpdateRequest' }
+      responses:
+        '200':
+          description: Updated settings
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserSettings' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /api/kana:
+    get:
+      tags: [Catalog]
+      security: [{ cookieAuth: [] }]
+      summary: List kana with current-user progress
+      parameters:
+        - name: script
+          in: query
+          required: true
+          schema: { type: string, enum: [HIRAGANA, KATAKANA] }
+      responses:
+        '200': { $ref: '#/components/responses/CatalogItems' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /api/kanji:
+    get:
+      tags: [Catalog]
+      security: [{ cookieAuth: [] }]
+      summary: List kanji with current-user progress
+      parameters:
+        - { $ref: '#/components/parameters/JlptLevel' }
+      responses:
+        '200': { $ref: '#/components/responses/CatalogItems' }
+  /api/kanji/{kanji}:
+    get:
+      tags: [Catalog]
+      security: [{ cookieAuth: [] }]
+      summary: Get a kanji with example words and progress
+      parameters:
+        - { name: kanji, in: path, required: true, description: 'Kanji glyph, not a catalog UUID', schema: { type: string } }
+      responses:
+        '200':
+          description: Kanji detail
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - { $ref: '#/components/schemas/CatalogItem' }
+                  - type: object
+                    required: [examples]
+                    properties:
+                      examples:
+                        type: array
+                        items:
+                          type: object
+                          required: [surface, reading, meaningsEs]
+                          properties:
+                            surface: { type: string }
+                            reading: { type: string, description: Hiragana }
+                            meaningsEs: { type: array, items: { type: string } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/words:
+    get:
+      tags: [Catalog]
+      security: [{ cookieAuth: [] }]
+      summary: List vocabulary with current-user progress
+      parameters:
+        - { $ref: '#/components/parameters/JlptLevel' }
+      responses:
+        '200': { $ref: '#/components/responses/CatalogItems' }
+  /api/sessions:
+    post:
+      tags: [Sessions]
+      security: [{ cookieAuth: [] }]
+      summary: Create a study session
+      description: Creates up to 50 questions. N5 kanji-reading sessions cannot be created until kanji reading data is loaded.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateSessionRequest' }
+      responses:
+        '201':
+          description: Created session without answer keys
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StudySession' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /api/sessions/{session}:
+    get:
+      tags: [Sessions]
+      security: [{ cookieAuth: [] }]
+      summary: Resume an owned study session
+      parameters: [{ $ref: '#/components/parameters/SessionId' }]
+      responses:
+        '200':
+          description: Session
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StudySession' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/sessions/{session}/answers:
+    post:
+      tags: [Sessions]
+      security: [{ cookieAuth: [] }]
+      summary: Submit and correct one answer
+      description: |
+        A saved answer retried with the same `questionId` and `idempotencyKey` returns its original 200 result without applying XP or progress again. A different key for an answered question, or a key used by another question, returns 409 with `message`. `EMPTY` and `WRONG_SCRIPT` are not saved, leaving the question open so the same key can be retried.
+      parameters: [{ $ref: '#/components/parameters/SessionId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AnswerRequest' }
+      responses:
+        '200':
+          description: Correction result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnswerResult' }
+        '409':
+          description: Answered question with a different key, or a key used by another question.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessageResponse' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /api/sessions/{session}/answers/sync:
+    post:
+      tags: [Sessions]
+      security: [{ cookieAuth: [] }]
+      summary: Synchronize up to 50 answers; individual failures are returned in order
+      parameters: [{ $ref: '#/components/parameters/SessionId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [answers]
+              properties:
+                answers:
+                  type: array
+                  maxItems: 50
+                  items: { $ref: '#/components/schemas/AnswerRequest' }
+      responses:
+        '200':
+          description: Ordered answer results or error objects
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [results]
+                properties:
+                  results:
+                    type: array
+                    description: Same length and order as the request. Each item is an AnswerResult or an error object.
+                    items:
+                      oneOf:
+                        - { $ref: '#/components/schemas/AnswerResult' }
+                        - type: object
+                          required: [error]
+                          properties:
+                            error:
+                              type: object
+                              required: [status, message]
+                              properties:
+                                status: { type: integer, example: 409 }
+                                message: { type: string }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /api/sessions/{session}/complete:
+    post:
+      tags: [Sessions]
+      security: [{ cookieAuth: [] }]
+      summary: Complete a fully answered session
+      parameters: [{ $ref: '#/components/parameters/SessionId' }]
+      responses:
+        '200':
+          description: Completion summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  correctCount: { type: integer }
+                  xpEarned: { type: integer }
+                  length: { type: integer }
+                  streakDays: { type: integer }
+                  finishedAt: { type: string, format: date-time }
+        '422': { description: Unanswered questions remain }
+  /api/leaderboard/weekly:
+    get:
+      tags: [Progress]
+      security: [{ cookieAuth: [] }]
+      summary: Get the current week's leaderboard
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50, default: 50 }
+      responses:
+        '200':
+          description: Ranked entries and the caller's own entry
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  entries:
+                    type: array
+                    items: { $ref: '#/components/schemas/LeaderboardEntry' }
+                  you:
+                    anyOf:
+                      - { $ref: '#/components/schemas/LeaderboardEntry' }
+                      - { type: 'null' }
+                  weekStart: { type: string, format: date }
+                  weekEnd: { type: string, format: date }
+                  daysLeft: { type: integer, minimum: 0 }
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: laravel_session
+      description: Laravel Sanctum stateful session. Browser clients must also send the XSRF token required by Laravel's web routes.
+  parameters:
+    SessionId:
+      name: session
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    JlptLevel:
+      name: jlpt
+      in: query
+      schema: { type: string, enum: [N5, N4, N3, N2, N1] }
+  responses:
+    Unauthenticated:
+      description: Authentication is required
+    NotFound:
+      description: Resource not found
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ValidationError' }
+    CatalogItems:
+      description: Catalog items without exercise answer keys
+      content:
+        application/json:
+          schema:
+            type: array
+            items: { $ref: '#/components/schemas/CatalogItem' }
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [name, nickname, email, password, password_confirmation]
+      properties:
+        name: { type: string, maxLength: 255 }
+        nickname: { type: string, maxLength: 255 }
+        email: { type: string, format: email, maxLength: 255 }
+        birthdate: { type: [string, 'null'], format: date }
+        password: { type: string, format: password }
+        password_confirmation: { type: string, format: password }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, format: password }
+        remember: { type: boolean, default: false }
+    ProfileUpdateRequest:
+      type: object
+      properties:
+        nickname: { type: string, maxLength: 255 }
+        birthdate: { type: [string, 'null'], format: date }
+        avatar: { type: string, format: binary, description: Image up to 2 MiB; send null to remove. }
+    User:
+      type: object
+      required: [id, name, nickname, email, is_guest, locale, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        nickname: { type: string }
+        email: { type: string, format: email }
+        birthdate: { type: [string, 'null'], format: date }
+        avatar: { type: [string, 'null'], description: Public storage path }
+        is_guest: { type: boolean }
+        locale: { type: string, example: es }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    Me:
+      allOf:
+        - { $ref: '#/components/schemas/User' }
+        - type: object
+          properties:
+            settings: { $ref: '#/components/schemas/UserSettings' }
+            stats: { $ref: '#/components/schemas/UserStats' }
+    UserSettings:
+      type: object
+      properties:
+        user_id: { type: string, format: uuid }
+        daily_goal_minutes: { type: integer, default: 20 }
+        reminders_enabled: { type: boolean, default: false }
+        sound_enabled: { type: boolean, default: true }
+        preferred_script: { type: string, enum: [ROMAJI, HIRAGANA, KATAKANA] }
+    SettingsUpdateRequest:
+      type: object
+      properties:
+        dailyGoalMinutes: { type: integer, minimum: 1, maximum: 1440 }
+        remindersEnabled: { type: boolean }
+        soundEnabled: { type: boolean }
+        preferredScript: { type: string, enum: [ROMAJI, HIRAGANA, KATAKANA] }
+    UserStats:
+      type: object
+      properties:
+        level: { type: integer, minimum: 1 }
+        xp_total: { type: integer, minimum: 0 }
+        xp_into_level: { type: integer, minimum: 0 }
+        xp_for_next_level: { type: integer, minimum: 1 }
+        streak_days: { type: integer, minimum: 0 }
+        last_study_date: { type: [string, 'null'], format: date }
+    HomeSummary:
+      type: object
+      required: [hiragana, katakana, kanji, words, weeklyRank, dailyGoalMinutes]
+      properties:
+        hiragana: { $ref: '#/components/schemas/LearnedCount' }
+        katakana: { $ref: '#/components/schemas/LearnedCount' }
+        kanji: { $ref: '#/components/schemas/LearnedCount' }
+        words:
+          type: object
+          required: [total]
+          properties:
+            total: { type: integer }
+        weeklyRank: { type: [integer, 'null'], description: Null when the user has no XP this week }
+        dailyGoalMinutes: { type: integer }
+    LearnedCount:
+      type: object
+      required: [learned, total]
+      properties:
+        learned: { type: integer }
+        total: { type: integer }
+    DailyActivity:
+      type: object
+      properties:
+        date: { type: string, format: date }
+        minutes_studied: { type: integer, minimum: 0 }
+        goal_minutes: { type: integer, minimum: 1 }
+        goal_met: { type: boolean }
+    CatalogItem:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        type: { type: string, enum: [KANA, KANJI, WORD] }
+        jlptLevel: { type: [string, 'null'], enum: [N5, N4, N3, N2, N1, null] }
+        script: { type: [string, 'null'], enum: [HIRAGANA, KATAKANA, null] }
+        glyph: { type: [string, 'null'] }
+        surface: { type: [string, 'null'] }
+        meaningsEs:
+          type: array
+          items: { type: string }
+        progress:
+          anyOf:
+            - type: object
+              properties:
+                status: { type: string, enum: [NEW, LEARNING, LEARNED] }
+                times_seen: { type: integer }
+                times_correct: { type: integer }
+                next_review_at: { type: [string, 'null'], format: date-time }
+            - { type: 'null' }
+        romaji: { type: [array, 'null'], items: { type: string } }
+        gridRow: { type: [integer, 'null'], minimum: 0, maximum: 9 }
+        gridColumn: { type: [integer, 'null'], minimum: 0, maximum: 4 }
+        onyomi: { type: [array, 'null'], items: { type: string } }
+        kunyomi: { type: [array, 'null'], items: { type: string } }
+        strokeCount: { type: [integer, 'null'] }
+        reading: { type: [string, 'null'] }
+    CreateSessionRequest:
+      type: object
+      required: [exercise]
+      properties:
+        exercise: { type: string, enum: [KANA_READING, KANA_WRITING, KANJI_READING, WORD_READING] }
+        format: { type: string, enum: [CARD, CHOICE], default: CARD }
+        length: { type: integer, minimum: 1, maximum: 50, default: 10 }
+        script: { type: string, enum: [HIRAGANA, KATAKANA], description: Applies to both kana exercises; defaults to HIRAGANA. }
+        itemIds: { type: array, maxItems: 50, description: 'For KANJI_READING, each selected kanji also adds its example words to the question pool. Returns 422 when any id does not exist or does not match the exercise.', items: { type: string, format: uuid } }
+        jlpt: { type: string, enum: [N5, N4, N3, N2, N1] }
+    StudySession:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        exercise: { type: string }
+        format: { type: string, enum: [CARD, CHOICE] }
+        length: { type: integer }
+        startedAt: { type: string, format: date-time }
+        finishedAt: { type: [string, 'null'], format: date-time }
+        questions:
+          type: array
+          items: { $ref: '#/components/schemas/Question' }
+    Question:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        itemId: { type: string, format: uuid }
+        index: { type: integer, minimum: 1 }
+        prompt: { type: string }
+        direction: { type: string, enum: [KANA_TO_ROMAJI, ROMAJI_TO_KANA, KANJI_TO_READING] }
+        acceptedScripts:
+          type: array
+          items: { type: string, enum: [ROMAJI, HIRAGANA, KATAKANA] }
+    AnswerRequest:
+      type: object
+      required: [questionId, rawInput, idempotencyKey]
+      properties:
+        questionId: { type: string, format: uuid }
+        rawInput: { type: string, maxLength: 255 }
+        clientAnsweredAt: { type: string, format: date-time }
+        idempotencyKey: { type: string, maxLength: 255 }
+    AnswerResult:
+      type: object
+      properties:
+        questionId: { type: string, format: uuid }
+        isCorrect: { type: boolean }
+        detectedScript: { type: string, enum: [ROMAJI, HIRAGANA, KATAKANA, KANJI] }
+        normalized: { type: string }
+        correctAnswer:
+          type: object
+          properties:
+            kana: { type: [string, 'null'] }
+            romaji: { type: [string, 'null'] }
+        feedbackCode: { type: string, enum: [CORRECT, INCORRECT, WRONG_SCRIPT, EMPTY] }
+        xpAwarded: { type: integer, minimum: 0 }
+        nextReviewAt: { type: [string, 'null'], format: date-time }
+        progress:
+          type: object
+          properties:
+            index: { type: integer }
+            correctCount: { type: integer }
+    LeaderboardEntry:
+      type: object
+      properties:
+        displayName: { type: string }
+        xp: { type: integer, minimum: 0 }
+        rank: { type: integer, minimum: 1 }
+        isCurrentUser: { type: boolean }
+    ValidationError:
+      type: object
+      properties:
+        message: { type: string }
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+    MessageResponse:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string }

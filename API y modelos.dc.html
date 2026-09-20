@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Zen+Old+Mincho:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; background:#F5F2EB; font-family:'Zen Kaku Gothic New',system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
+  a { color:#B23A24; text-decoration:none; }
+  a:hover { color:#8E2C1A; text-decoration:underline; }
+</style>
+</helmet>
+<div style="max-width:1080px;margin:0 auto;padding:56px 28px 96px;box-sizing:border-box;color:#17140F">
+
+  <div style="font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:#6C665B;margin-bottom:14px">いっけ！ 日本語 · BFF</div>
+  <div style="font-family:'Zen Old Mincho',serif;font-size:40px;line-height:1.15;margin-bottom:14px">Modelos y API de corrección</div>
+  <div style="font-size:16px;line-height:1.65;color:#3C3830;max-width:640px;text-wrap:pretty;margin-bottom:48px">Modelo de dominio, contratos REST y reglas de validación por tipo de ejercicio. El BFF es la única fuente de verdad: el cliente nunca conoce la respuesta correcta antes de enviar.</div>
+
+  <div style="height:1px;background:#DDD6C7;margin-bottom:40px"></div>
+
+  <div style="font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#6C665B;margin-bottom:20px">1 · Diagrama de clases</div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px;margin-bottom:22px">
+
+    <div style="background:#FFFFFF;border:1px solid #D8D2C4;border-radius:12px;overflow:hidden">
+      <div style="background:#17140F;color:#F5F2EB;padding:10px 14px;font-size:14px;font-weight:700">User</div>
+      <div style="padding:12px 14px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.9;color:#3C3830">id: UUID<br>displayName: string<br>email: string?<br>isGuest: boolean<br>locale: "es"<br>createdAt: DateTime</div>
+    </div>
+
+    <div style="background:#FFFFFF;border:1px solid #D8D2C4;border-radius:12px;overflow:hidden">
+      <div style="background:#17140F;color:#F5F2EB;padding:10px 14px;font-size:14px;font-weight:700">UserSettings</div>
+      <div style="padding:12px 14px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.9;color:#3C3830">userId: UUID<br>dailyGoalMinutes: int<br>remindersEnabled: bool<br>soundEnabled: bool<br>preferredScript: Script</div>
+    </div>
+
+    <div style="background:#FFFFFF;border:1px solid #D8D2C4;border-radius:12px;overflow:hidden">
+      <div style="background:#17140F;color:#F5F2EB;padding:10px 14px;font-size:14px;font-weight:700">UserStats</div>
+      <div style="padding:12px 14px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.9;color:#3C3830">userId: UUID<br>level: int<br>xpTotal: int<br>xpIntoLevel: int<br>xpForNextLevel: int<br>streakDays: int<br>lastStudyDate: Date</div>
+    </div>
+
+    <div style="background:#FFFFFF;border:1px solid #D8D2C4;border-radius:12px;overflow:hidden">
+      <div style="background:#B23A24;color:#FFFFFF;padding:10px 14px;font-size:14px;font-weight:700">StudyItem «abstract»</div>
+      <div style="padding:12px 14px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.9;color:#3C3830">id: UUID<br>type: ItemType<br>jlptLevel: JlptLevel?<br><span style="color:#8E2C1A">+ readings(): Reading[]</span></div>
+    </div>
+
+    <div style="background:#FFFFFF;border:1px solid #D8D2C4;border-radius:12px;overflow:hidden">
+      <div style="background:#3C3830;color:#F5F2EB;padding:10px 14px;font-size:14px;font-weight:700">KanaCharacter : StudyItem</div>
+      <div style="padding:12px 14px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.9;color:#3C3830">script: HIRAGANA | KATAKANA<br>glyph: string<br>romaji: string[]<br>row: string<br>column: string</div>
+    </div>
+
+    <div style="background:#FFFFFF;border:1px solid #D8D2C4;border-radius:12px;overflow:hidden">
+      <div style="background:#3C3830;color:#F5F2EB;padding:10px 14px;font-size:14px;font-weight:700">Kanji : StudyItem</div>
+      <div style="padding:12px 14px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.9;color:#3C3830">glyph: string<br>meaningsEs: string[]<br>onyomi: string[] «katakana»<br>kunyomi: string[] «hiragana»<br>strokeCount: int</div>
+    </div>
+
+    <div style="background:#FFFFFF;border:1px solid #D8D2C4;border-radius:12px;overflow:hidden">
+      <div style="background:#3C3830;color:#F5F2EB;padding:10px 14px;font-size:14px;font-weight:700">Word : StudyItem</div>
+      <div style="padding:12px 14px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.9;color:#3C3830">surface: string<br>reading: string «hiragana»<br>meaningsEs: string[]<br>kanjiIds: UUID[]</div>
+    </div>
+
+    <div style="background:#FFFFFF;border:1px solid #D8D2C4;border-radius:12px;overflow:hidden">
+      <div style="background:#17140F;color:#F5F2EB;padding:10px 14px;font-size:14px;font-weight:700">UserItemProgress</div>
+      <div style="padding:12px 14px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.9;color:#3C3830">userId: UUID<br>itemId: UUID<br>status: ItemStatus<br>timesSeen: int<br>timesCorrect: int<br>nextReviewAt: DateTime</div>
+    </div>
+
+    <div style="background:#FFFFFF;border:1px solid #D8D2C4;border-radius:12px;overflow:hidden">
+      <div style="background:#17140F;color:#F5F2EB;padding:10px 14px;font-size:14px;font-weight:700">Session</div>
+      <div style="padding:12px 14px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.9;color:#3C3830">id: UUID<br>userId: UUID<br>exercise: ExerciseType<br>format: CARD | CHOICE<br>length: int = 10<br>startedAt / finishedAt<br>correctCount: int<br>xpEarned: int</div>
+    </div>
+
+    <div style="background:#FFFFFF;border:1px solid #D8D2C4;border-radius:12px;overflow:hidden">
+      <div style="background:#17140F;color:#F5F2EB;padding:10px 14px;font-size:14px;font-weight:700">Question</div>
+      <div style="padding:12px 14px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.9;color:#3C3830">id: UUID<br>sessionId: UUID<br>index: int<br>itemId: UUID<br>prompt: string<br>direction: Direction<br>acceptedScripts: Script[]</div>
+    </div>
+
+    <div style="background:#FFFFFF;border:1.5px solid #B23A24;border-radius:12px;overflow:hidden">
+      <div style="background:#B23A24;color:#FFFFFF;padding:10px 14px;font-size:14px;font-weight:700">Answer</div>
+      <div style="padding:12px 14px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.9;color:#3C3830">id: UUID<br>questionId: UUID<br>rawInput: string<br>detectedScript: Script<br>normalized: string<br>isCorrect: boolean<br>xpAwarded: int<br>answeredAt: DateTime<br>idempotencyKey: string</div>
+    </div>
+
+    <div style="background:#FFFFFF;border:1px solid #D8D2C4;border-radius:12px;overflow:hidden">
+      <div style="background:#17140F;color:#F5F2EB;padding:10px 14px;font-size:14px;font-weight:700">DailyActivity</div>
+      <div style="padding:12px 14px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.9;color:#3C3830">userId: UUID<br>date: Date<br>minutesStudied: int<br>goalMinutes: int<br>goalMet: boolean</div>
+    </div>
+
+    <div style="background:#FFFFFF;border:1px solid #D8D2C4;border-radius:12px;overflow:hidden">
+      <div style="background:#17140F;color:#F5F2EB;padding:10px 14px;font-size:14px;font-weight:700">LeaderboardEntry</div>
+      <div style="padding:12px 14px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.9;color:#3C3830">weekStart: Date<br>userId: UUID<br>displayName: string<br>xp: int<br>rank: int</div>
+    </div>
+
+  </div>
+
+  <div style="background:#FFFFFF;border:1px solid #D8D2C4;border-radius:12px;padding:20px 22px;margin-bottom:48px">
+    <div style="font-size:13px;font-weight:700;margin-bottom:14px">Relaciones</div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:2;color:#3C3830">
+      User 1 ──── 1 UserSettings · UserStats<br>
+      User 1 ──── * Session ──── 1..* Question ──── 0..1 Answer<br>
+      User 1 ──── * UserItemProgress * ──── 1 StudyItem<br>
+      StudyItem ◁── KanaCharacter · Kanji · Word  «herencia»<br>
+      User 1 ──── * DailyActivity · LeaderboardEntry
+    </div>
+  </div>
+
+  <div style="font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#6C665B;margin-bottom:20px">2 · Enumeraciones</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px;margin-bottom:48px">
+    <div style="background:#FFFFFF;border:1px solid #D8D2C4;border-radius:12px;padding:16px 18px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:10px">Script</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.9;color:#3C3830">ROMAJI · HIRAGANA · KATAKANA</div>
+    </div>
+    <div style="background:#FFFFFF;border:1px solid #D8D2C4;border-radius:12px;padding:16px 18px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:10px">ExerciseType</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.9;color:#3C3830">KANA_READING · KANA_WRITING<br>KANJI_READING · WORD_READING</div>
+    </div>
+    <div style="background:#FFFFFF;border:1px solid #D8D2C4;border-radius:12px;padding:16px 18px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:10px">Direction</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.9;color:#3C3830">KANA_TO_ROMAJI · ROMAJI_TO_KANA<br>KANJI_TO_READING</div>
+    </div>
+    <div style="background:#FFFFFF;border:1px solid #D8D2C4;border-radius:12px;padding:16px 18px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:10px">ItemStatus · JlptLevel</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.9;color:#3C3830">NEW · LEARNING · LEARNED<br>N5 · N4 · N3 · N2 · N1</div>
+    </div>
+  </div>
+
+  <div style="font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#6C665B;margin-bottom:20px">3 · Reglas de validación</div>
+  <div style="background:#FFFFFF;border:1px solid #D8D2C4;border-radius:12px;overflow:hidden;margin-bottom:24px">
+    <div style="padding:16px 20px;border-bottom:1px solid #EFEAE0">
+      <div style="font-size:14px;font-weight:700;margin-bottom:6px">KANA_READING · あ → A</div>
+      <div style="font-size:13px;line-height:1.6;color:#3C3830;text-wrap:pretty">Acepta <b>solo rōmaji</b>. Normaliza a minúsculas, recorta espacios y compara contra <code style="font-family:'JetBrains Mono',monospace">romaji[]</code>, que incluye Hepburn y Kunrei (shi/si, tsu/tu, fu/hu, ji/zi). Cualquier kana en la entrada → <code style="font-family:'JetBrains Mono',monospace">WRONG_SCRIPT</code>, no cuenta como fallo de conocimiento.</div>
+    </div>
+    <div style="padding:16px 20px;border-bottom:1px solid #EFEAE0">
+      <div style="font-size:14px;font-weight:700;margin-bottom:6px">KANA_WRITING · A → あ / A → ア</div>
+      <div style="font-size:13px;line-height:1.6;color:#3C3830;text-wrap:pretty">Acepta <b>solo el silabario del ejercicio</b>. Normaliza NFC y compara glifo a glifo. Katakana enviado en un ejercicio de hiragana → <code style="font-family:'JetBrains Mono',monospace">WRONG_SCRIPT</code>.</div>
+    </div>
+    <div style="padding:16px 20px">
+      <div style="font-size:14px;font-weight:700;margin-bottom:6px">KANJI_READING · WORD_READING</div>
+      <div style="font-size:13px;line-height:1.6;color:#3C3830;text-wrap:pretty">Acepta <b>rōmaji, hiragana o katakana</b>. El BFF detecta el script, convierte todo a hiragana canónica (rōmaji → kana; katakana → hiragana) y compara contra el conjunto de lecturas válidas del ítem. Para kanji sueltos valen on'yomi y kun'yomi; para palabras, solo la lectura de la palabra. Okurigana obligatoria en palabras (食べる → たべる).</div>
+    </div>
+  </div>
+  <div style="background:#F2E4DF;border-radius:12px;padding:16px 20px;font-size:13px;line-height:1.6;color:#6C4238;margin-bottom:48px;text-wrap:pretty">Todas las reglas viven en el BFF. El cliente solo recibe <code style="font-family:'JetBrains Mono',monospace">acceptedScripts</code> para pintar el selector A / あ / ア y el texto de ayuda.</div>
+
+  <div style="font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#6C665B;margin-bottom:20px">4 · Endpoints</div>
+  <div style="background:#FFFFFF;border:1px solid #D8D2C4;border-radius:12px;overflow:hidden;margin-bottom:24px">
+    <div style="padding:14px 20px;border-bottom:1px solid #EFEAE0;display:flex;gap:16px;align-items:baseline"><div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;color:#B23A24;width:56px;flex-shrink:0">POST</div><div style="font-family:'JetBrains Mono',monospace;font-size:12.5px;flex:1;min-width:0">/sessions</div><div style="font-size:12.5px;color:#6C665B;flex:1;min-width:0">Crea sesión de 10 preguntas</div></div>
+    <div style="padding:14px 20px;border-bottom:1px solid #EFEAE0;display:flex;gap:16px;align-items:baseline"><div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;color:#3F6B4F;width:56px;flex-shrink:0">GET</div><div style="font-family:'JetBrains Mono',monospace;font-size:12.5px;flex:1;min-width:0">/sessions/{id}</div><div style="font-size:12.5px;color:#6C665B;flex:1;min-width:0">Reanudar sesión abierta</div></div>
+    <div style="padding:14px 20px;border-bottom:1px solid #EFEAE0;display:flex;gap:16px;align-items:baseline"><div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;color:#B23A24;width:56px;flex-shrink:0">POST</div><div style="font-family:'JetBrains Mono',monospace;font-size:12.5px;flex:1;min-width:0">/sessions/{id}/answers</div><div style="font-size:12.5px;color:#6C665B;flex:1;min-width:0">Corrige una respuesta</div></div>
+    <div style="padding:14px 20px;border-bottom:1px solid #EFEAE0;display:flex;gap:16px;align-items:baseline"><div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;color:#B23A24;width:56px;flex-shrink:0">POST</div><div style="font-family:'JetBrains Mono',monospace;font-size:12.5px;flex:1;min-width:0">/sessions/{id}/answers:sync</div><div style="font-size:12.5px;color:#6C665B;flex:1;min-width:0">Lote offline, idempotente</div></div>
+    <div style="padding:14px 20px;border-bottom:1px solid #EFEAE0;display:flex;gap:16px;align-items:baseline"><div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;color:#B23A24;width:56px;flex-shrink:0">POST</div><div style="font-family:'JetBrains Mono',monospace;font-size:12.5px;flex:1;min-width:0">/sessions/{id}/complete</div><div style="font-size:12.5px;color:#6C665B;flex:1;min-width:0">Cierra y devuelve resumen</div></div>
+    <div style="padding:14px 20px;border-bottom:1px solid #EFEAE0;display:flex;gap:16px;align-items:baseline"><div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;color:#3F6B4F;width:56px;flex-shrink:0">GET</div><div style="font-family:'JetBrains Mono',monospace;font-size:12.5px;flex:1;min-width:0">/me · /me/stats · /me/activity</div><div style="font-size:12.5px;color:#6C665B;flex:1;min-width:0">Perfil, nivel, racha, calendario</div></div>
+    <div style="padding:14px 20px;border-bottom:1px solid #EFEAE0;display:flex;gap:16px;align-items:baseline"><div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;color:#6C665B;width:56px;flex-shrink:0">PATCH</div><div style="font-family:'JetBrains Mono',monospace;font-size:12.5px;flex:1;min-width:0">/me/settings</div><div style="font-size:12.5px;color:#6C665B;flex:1;min-width:0">Meta diaria, avisos, sonido</div></div>
+    <div style="padding:14px 20px;border-bottom:1px solid #EFEAE0;display:flex;gap:16px;align-items:baseline"><div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;color:#3F6B4F;width:56px;flex-shrink:0">GET</div><div style="font-family:'JetBrains Mono',monospace;font-size:12.5px;flex:1;min-width:0">/kana?script= · /kanji?jlpt= · /words?jlpt=</div><div style="font-size:12.5px;color:#6C665B;flex:1;min-width:0">Catálogo con progreso del usuario</div></div>
+    <div style="padding:14px 20px;display:flex;gap:16px;align-items:baseline"><div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;color:#3F6B4F;width:56px;flex-shrink:0">GET</div><div style="font-family:'JetBrains Mono',monospace;font-size:12.5px;flex:1;min-width:0">/leaderboard/weekly?limit=50</div><div style="font-size:12.5px;color:#6C665B;flex:1;min-width:0">Top 50 + tu puesto</div></div>
+  </div>
+
+  <div style="font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#6C665B;margin-bottom:20px">5 · Contrato de corrección</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-bottom:24px">
+    <div style="background:#17140F;border-radius:12px;padding:20px 22px;overflow:auto">
+      <div style="font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:#9A938A;margin-bottom:14px">Request</div>
+      <pre style="margin:0;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.75;color:#F5F2EB">POST /sessions/{id}/answers
+{
+  "questionId": "0b9…",
+  "rawInput": "suiyoubi",
+  "clientAnsweredAt": "2026-09-19T09:41:02Z",
+  "idempotencyKey": "0b9-1"
+}</pre>
+    </div>
+    <div style="background:#17140F;border-radius:12px;padding:20px 22px;overflow:auto">
+      <div style="font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:#9A938A;margin-bottom:14px">Response · 200</div>
+      <pre style="margin:0;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.75;color:#F5F2EB">{
+  "isCorrect": true,
+  "detectedScript": "ROMAJI",
+  "normalized": "すいようび",
+  "correctAnswer": {
+    "kana": "すいようび",
+    "romaji": "suiyoubi"
+  },
+  "feedbackCode": "CORRECT",
+  "xpAwarded": 4,
+  "nextReviewAt": "2026-09-22T09:00:00Z",
+  "progress": { "index": 2, "correctCount": 2 }
+}</pre>
+    </div>
+  </div>
+  <div style="background:#FFFFFF;border:1px solid #D8D2C4;border-radius:12px;padding:18px 22px;margin-bottom:48px">
+    <div style="font-size:13px;font-weight:700;margin-bottom:12px">feedbackCode</div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:2;color:#3C3830">CORRECT · INCORRECT · WRONG_SCRIPT · EMPTY · ALREADY_ANSWERED</div>
+    <div style="font-size:13px;line-height:1.6;color:#6C665B;margin-top:12px;text-wrap:pretty">En INCORRECT la respuesta trae <code style="font-family:'JetBrains Mono',monospace">correctAnswer</code> en kana y rōmaji: es justo lo que pinta la pantalla 08. En WRONG_SCRIPT el cliente avisa del formato y deja reintentar sin gastar el intento.</div>
+  </div>
+
+  <div style="font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#6C665B;margin-bottom:20px">6 · Flujo de una respuesta</div>
+  <div style="background:#FFFFFF;border:1px solid #D8D2C4;border-radius:12px;padding:22px;display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;gap:16px;align-items:flex-start"><div style="width:26px;height:26px;border-radius:50%;background:#17140F;color:#F5F2EB;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">1</div><div style="font-size:14px;line-height:1.6;color:#3C3830">La app envía <code style="font-family:'JetBrains Mono',monospace">rawInput</code> tal cual, sin normalizar ni comparar.</div></div>
+    <div style="display:flex;gap:16px;align-items:flex-start"><div style="width:26px;height:26px;border-radius:50%;background:#17140F;color:#F5F2EB;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">2</div><div style="font-size:14px;line-height:1.6;color:#3C3830">El BFF detecta script, valida contra <code style="font-family:'JetBrains Mono',monospace">acceptedScripts</code> y normaliza a forma canónica.</div></div>
+    <div style="display:flex;gap:16px;align-items:flex-start"><div style="width:26px;height:26px;border-radius:50%;background:#17140F;color:#F5F2EB;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">3</div><div style="font-size:14px;line-height:1.6;color:#3C3830">Compara con las lecturas válidas, persiste <code style="font-family:'JetBrains Mono',monospace">Answer</code> y actualiza <code style="font-family:'JetBrains Mono',monospace">UserItemProgress</code> y XP.</div></div>
+    <div style="display:flex;gap:16px;align-items:flex-start"><div style="width:26px;height:26px;border-radius:50%;background:#17140F;color:#F5F2EB;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">4</div><div style="font-size:14px;line-height:1.6;color:#3C3830">Devuelve veredicto y respuesta correcta; la app pinta acierto o fallo.</div></div>
+    <div style="display:flex;gap:16px;align-items:flex-start"><div style="width:26px;height:26px;border-radius:50%;background:#B23A24;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">!</div><div style="font-size:14px;line-height:1.6;color:#3C3830">Sin red: la app encola con <code style="font-family:'JetBrains Mono',monospace">idempotencyKey</code>, muestra la pantalla 09 y reenvía por <code style="font-family:'JetBrains Mono',monospace">answers:sync</code> al reconectar.</div></div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>
