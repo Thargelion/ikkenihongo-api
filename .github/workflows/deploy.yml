@@ -1,0 +1,82 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@b604ade2a87db23f8871b7182e69ec5e75effb45 # v2
+        with:
+          php-version: '8.3'
+          tools: composer:v2
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Check formatting
+        run: vendor/bin/pint --test
+
+      - name: Run tests
+        run: composer test
+
+  deploy:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@b604ade2a87db23f8871b7182e69ec5e75effb45 # v2
+        with:
+          php-version: '8.3'
+          tools: composer:v2
+
+      - name: Install production dependencies
+        run: composer install --no-dev --no-interaction --no-progress --prefer-dist --classmap-authoritative
+
+      - name: Deploy application files
+        uses: SamKirkland/FTP-Deploy-Action@a51268f67f6605236975928ae28b0f7e9971d50a # v4.3.6
+        with:
+          server: ${{ vars.FTP_HOST }}
+          port: ${{ vars.FTP_PORT }}
+          protocol: ftps
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          server-dir: ${{ vars.FTP_SERVER_DIR }}
+          exclude: |
+            **/.env*
+            **/.git*
+            **/.github/**
+            **/.agents/**
+            **/.codex/**
+            **/node_modules/**
+            **/storage/**
+            **/tests/**
+            **/bootstrap/cache/config.php
+            **/bootstrap/cache/events.php
+            **/bootstrap/cache/routes*.php
+            **/phpunit.xml
+            **/pint.json
+            **/*.md
+            **/*.sh
+
+      - name: Verify deployment
+        run: curl --fail --silent --show-error --retry 3 --retry-delay 5 --retry-all-errors https://ikkeapi.fragua.com.ar/up
