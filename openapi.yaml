@@ -595,7 +595,7 @@ components:
                 next_review_at: { type: [string, 'null'], format: date-time }
             - { type: 'null' }
         romaji: { type: [array, 'null'], items: { type: string } }
-        gridRow: { type: [integer, 'null'], minimum: 0, maximum: 9 }
+        gridRow: { type: [integer, 'null'], minimum: 0, maximum: 14, description: 'Rows 0-9 are the gojūon grid; rows 10-14 hold the voiced (ga, za, da, ba) and semi-voiced (pa) kana.' }
         gridColumn: { type: [integer, 'null'], minimum: 0, maximum: 4 }
         onyomi: { type: [array, 'null'], items: { type: string } }
         kunyomi: { type: [array, 'null'], items: { type: string } }

@@ -278,7 +278,8 @@ class SessionController extends Controller
         }
 
         if ($question->direction === 'ROMAJI_TO_KANA') {
-            return $normalized === $question->item->glyph;
+            // katakana input is normalised to hiragana, so compare against the hiragana form of the glyph
+            return $normalized === mb_convert_kana($question->item->glyph, 'c', 'UTF-8');
         }
 
         if ($question->direction === 'MEANING_TO_WORD') {
