@@ -16,11 +16,12 @@ class N5CatalogSeeder extends Seeder
         $this->seedKanjiExamples();
     }
 
+    // The key is hex-encoded: accent-insensitive collations (MySQL default) would treat か and が as the same key.
     private function seedKana(string $file, string $script): void
     {
         foreach ($this->rows($file) as [$romaji, $glyph]) {
             StudyItem::updateOrCreate(
-                ['source_key' => "kana:$script:$glyph"],
+                ['source_key' => "kana:$script:".bin2hex($glyph)],
                 [
                     'type' => 'KANA',
                     'script' => $script,
