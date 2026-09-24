@@ -82,4 +82,39 @@ class CatalogTest extends TestCase
         $this->assertSame(['Encontrarse'], $old->fresh()->meanings_es);
         $this->assertSame(['To meet'], $old->fresh()->meanings_en);
     }
+
+    public function test_kana_keys_are_ascii_so_voiced_kana_never_share_a_key(): void
+    {
+        $this->seed(N5CatalogSeeder::class);
+
+        $keys = StudyItem::where('type', 'KANA')->pluck('source_key');
+
+        $this->assertCount(142, $keys);
+        $this->assertSame('kana:HIRAGANA:'.bin2hex('が'), StudyItem::where(['type' => 'KANA', 'script' => 'HIRAGANA', 'glyph' => 'が'])->value('source_key'));
+        $keys->each(fn (string $key) => $this->assertMatchesRegularExpression('/^kana:(HIRAGANA|KATAKANA):[0-9a-f]+$/', $key));
+    }
+
+    public function test_repair_migration_restores_kana_rows_overwritten_by_their_voiced_variants(): void
+    {
+        // State left by the collation bug: the か row was rewritten into が but kept the か key.
+        $damaged = StudyItem::create([
+            'source_key' => 'kana:HIRAGANA:か', 'type' => 'KANA', 'script' => 'HIRAGANA',
+            'glyph' => 'が', 'romaji' => ['ga'], 'kana_row' => 1, 'kana_column' => 0,
+        ]);
+        $intact = StudyItem::create([
+            'source_key' => 'kana:HIRAGANA:あ', 'type' => 'KANA', 'script' => 'HIRAGANA',
+            'glyph' => 'あ', 'romaji' => ['a'], 'kana_row' => 0, 'kana_column' => 0,
+        ]);
+        $migration = require database_path('migrations/2026_09_24_200000_rekey_kana_items_to_ascii_source_keys.php');
+
+        $migration->up();
+        $migration->up();
+        $this->seed(N5CatalogSeeder::class);
+
+        $this->assertSame(142, StudyItem::where('type', 'KANA')->count());
+        $this->assertSame('か', $damaged->fresh()->glyph);
+        $this->assertSame(['ka'], $damaged->fresh()->romaji);
+        $this->assertSame('あ', $intact->fresh()->glyph);
+        $this->assertSame(1, StudyItem::where(['type' => 'KANA', 'script' => 'HIRAGANA', 'glyph' => 'が'])->count());
+    }
 }
