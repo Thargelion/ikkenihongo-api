@@ -99,6 +99,12 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      # The files are already uploaded at this point. The host firewall may block GitHub runner
+      # IPs, so an unreachable API is reported as a warning instead of failing the deploy.
       - name: Verify deployment
         if: ${{ !inputs.bootstrap_state }}
-        run: curl --fail --silent --show-error --retry 3 --retry-delay 5 --retry-all-errors https://ikkeapi.fragua.com.ar/up
+        continue-on-error: true
+        run: |
+          curl --fail --silent --show-error --connect-timeout 10 --max-time 20 \
+            --retry 2 --retry-delay 5 --retry-all-errors https://ikkeapi.fragua.com.ar/up \
+            || { echo "::warning::Could not reach https://ikkeapi.fragua.com.ar/up from the runner; verify the deployment manually."; exit 1; }
