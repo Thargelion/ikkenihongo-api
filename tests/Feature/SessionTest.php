@@ -118,4 +118,122 @@ class SessionTest extends TestCase
         $this->assertTrue($items->contains('KANJI'));
         $this->assertTrue($items->contains('WORD'));
     }
+
+    private function word(string $surface, string $reading, array $meanings): StudyItem
+    {
+        return StudyItem::create([
+            'source_key' => 'word:'.$surface.$reading,
+            'type' => 'WORD',
+            'jlpt_level' => 'N5',
+            'surface' => $surface,
+            'reading' => $reading,
+            'meanings_es' => $meanings,
+        ]);
+    }
+
+    private function answer(User $user, array $session, int $index, string $input, string $key)
+    {
+        return $this->actingAs($user, 'sanctum')->postJson("/api/sessions/{$session['id']}/answers", [
+            'questionId' => $session['questions'][$index]['id'], 'rawInput' => $input, 'idempotencyKey' => $key,
+        ]);
+    }
+
+    public function test_word_writing_accepts_any_word_with_the_same_meaning_and_katakana_forms(): void
+    {
+        $user = User::factory()->create();
+        $friend = $this->word('友達', 'ともだち', ['Friend']);
+        $this->word('友だち', 'ともだち', ['Friend']);
+        $kilo = $this->word('キロ/キログラム', 'きろ', ['Kilo']);
+        $copy = $this->word('コピーする', 'こぴーする', ['To copy']);
+        $this->word('本', 'ほん', ['Book']);
+
+        $session = $this->actingAs($user, 'sanctum')->postJson('/api/sessions', [
+            'exercise' => 'WORD_WRITING', 'itemIds' => [$friend->id, $kilo->id, $copy->id],
+        ])->assertCreated()->json();
+        $byPrompt = collect($session['questions'])->keyBy('prompt');
+        $this->assertSame('MEANING_TO_WORD', $byPrompt['Friend']['direction']);
+        $this->assertArrayNotHasKey('choices', $byPrompt['Friend']);
+        $idx = fn (string $prompt): int => array_search($prompt, array_column($session['questions'], 'prompt'), true);
+
+        $this->answer($user, $session, $idx('Friend'), '友だち', 'k1')->assertJsonPath('feedbackCode', 'CORRECT');
+        $this->answer($user, $session, $idx('Kilo'), 'キログラム', 'k2')->assertJsonPath('feedbackCode', 'CORRECT');
+        $this->answer($user, $session, $idx('To copy'), 'こぴーする', 'k3')
+            ->assertJsonPath('feedbackCode', 'INCORRECT')
+            ->assertJsonPath('correctAnswer.surface', 'コピーする');
+    }
+
+    public function test_word_writing_marks_wrong_words_and_reveals_the_surface(): void
+    {
+        $user = User::factory()->create();
+        $friend = $this->word('友達', 'ともだち', ['Friend']);
+        $session = $this->actingAs($user, 'sanctum')->postJson('/api/sessions', [
+            'exercise' => 'WORD_WRITING', 'itemIds' => [$friend->id],
+        ])->assertCreated()->json();
+
+        $this->answer($user, $session, 0, '先生', 'w1')
+            ->assertJsonPath('feedbackCode', 'INCORRECT')
+            ->assertJsonPath('correctAnswer.surface', '友達')
+            ->assertJsonPath('correctAnswer.kana', 'ともだち');
+    }
+
+    public function test_multiple_choice_reading_stores_choices_and_grades_the_selected_one(): void
+    {
+        $user = User::factory()->create();
+        $coffee = $this->word('コーヒー', 'こーひー', ['Coffee']);
+        foreach ([['本', 'ほん'], ['水', 'みず'], ['山', 'やま'], ['川', 'かわ']] as [$surface, $reading]) {
+            $this->word($surface, $reading, [$reading]);
+        }
+
+        $session = $this->actingAs($user, 'sanctum')->postJson('/api/sessions', [
+            'exercise' => 'WORD_READING', 'format' => 'CHOICE', 'itemIds' => [$coffee->id],
+        ])->assertCreated()->assertJsonPath('format', 'CHOICE')->json();
+        $choices = $session['questions'][0]['choices'];
+
+        $this->assertCount(4, $choices);
+        $this->assertCount(4, array_unique($choices));
+        $this->assertContains('こーひー', $choices);
+        $this->actingAs($user, 'sanctum')->getJson("/api/sessions/{$session['id']}")
+            ->assertJsonPath('questions.0.choices', $choices);
+        $this->answer($user, $session, 0, 'こーひー', 'c1')->assertJsonPath('feedbackCode', 'CORRECT');
+    }
+
+    public function test_multiple_choice_writing_never_offers_a_synonym_as_distractor(): void
+    {
+        $user = User::factory()->create();
+        $friend = $this->word('友達', 'ともだち', ['Friend']);
+        $this->word('友だち', 'ともだち', ['Friend']);
+        foreach ([['本', 'ほん'], ['水', 'みず'], ['山', 'やま'], ['川', 'かわ']] as [$surface, $reading]) {
+            $this->word($surface, $reading, [$reading]);
+        }
+
+        $session = $this->actingAs($user, 'sanctum')->postJson('/api/sessions', [
+            'exercise' => 'WORD_WRITING', 'format' => 'CHOICE', 'itemIds' => [$friend->id],
+        ])->assertCreated()->json();
+        $choices = $session['questions'][0]['choices'];
+
+        $this->assertContains('友達', $choices);
+        $this->assertNotContains('友だち', $choices);
+        $this->answer($user, $session, 0, '友達', 'c1')->assertJsonPath('feedbackCode', 'CORRECT');
+    }
+
+    public function test_multiple_choice_is_only_available_for_word_exercises(): void
+    {
+        $this->seed(N5CatalogSeeder::class);
+        $user = User::factory()->create();
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/sessions', [
+            'exercise' => 'KANA_READING', 'format' => 'CHOICE', 'length' => 1,
+        ])->assertUnprocessable()->assertJsonValidationErrors('format');
+    }
+
+    public function test_reading_accepts_katakana_readings(): void
+    {
+        $user = User::factory()->create();
+        $coffee = $this->word('コーヒー', 'コーヒー', ['Coffee']);
+        $session = $this->actingAs($user, 'sanctum')->postJson('/api/sessions', [
+            'exercise' => 'WORD_READING', 'itemIds' => [$coffee->id],
+        ])->assertCreated()->json();
+
+        $this->answer($user, $session, 0, 'コーヒー', 'r1')->assertJsonPath('feedbackCode', 'CORRECT');
+    }
 }

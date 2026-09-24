@@ -13,6 +13,7 @@ use App\Support\KanaConverter;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
@@ -20,10 +21,12 @@ use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 class SessionController extends Controller
 {
+    private const CHOICE_EXERCISES = ['WORD_READING', 'WORD_WRITING'];
+
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'exercise' => ['required', 'in:KANA_READING,KANA_WRITING,KANJI_READING,WORD_READING'],
+            'exercise' => ['required', 'in:KANA_READING,KANA_WRITING,KANJI_READING,WORD_READING,WORD_WRITING'],
             'format' => ['nullable', 'in:CARD,CHOICE'],
             'length' => ['nullable', 'integer', 'min:1', 'max:50'],
             'script' => ['nullable', 'in:HIRAGANA,KATAKANA'],
@@ -31,6 +34,10 @@ class SessionController extends Controller
             'itemIds.*' => ['uuid'],
             'jlpt' => ['nullable', 'in:N5,N4,N3,N2,N1'],
         ]);
+        $format = $data['format'] ?? 'CARD';
+        if ($format === 'CHOICE' && ! in_array($data['exercise'], self::CHOICE_EXERCISES, true)) {
+            throw ValidationException::withMessages(['format' => ['Multiple choice is only available for word exercises.']]);
+        }
         $config = $this->config($data['exercise'], $data['script'] ?? null);
         $length = $data['length'] ?? 10;
         $items = StudyItem::query()->where($config['filters'])
@@ -59,21 +66,24 @@ class SessionController extends Controller
             ]);
         }
 
-        $session = DB::transaction(function () use ($request, $data, $config, $items, $length): StudySession {
+        $pool = $format === 'CHOICE' ? StudyItem::query()->where($config['filters'])->get() : null;
+
+        $session = DB::transaction(function () use ($request, $data, $config, $items, $length, $format, $pool): StudySession {
             $session = $request->user()->sessions()->create([
                 'exercise' => $data['exercise'],
-                'format' => $data['format'] ?? 'CARD',
+                'format' => $format,
                 'length' => $length,
                 'started_at' => now(),
             ]);
 
-            $items->each(function (StudyItem $item, int $position) use ($session, $config): void {
+            $items->each(function (StudyItem $item, int $position) use ($session, $config, $data, $pool): void {
                 $session->questions()->create([
                     'study_item_id' => $item->id,
                     'position' => $position + 1,
                     'prompt' => $config['prompt']($item),
                     'direction' => $config['direction'],
                     'accepted_scripts' => $config['accepted_scripts'],
+                    'choices' => $pool ? $this->choicesFor($data['exercise'], $item, $pool) : null,
                 ]);
             });
 
@@ -158,11 +168,15 @@ class SessionController extends Controller
 
         $detectedScript = KanaConverter::detect($rawInput);
 
+        if (! $detectedScript && ($question->choices || $question->direction === 'MEANING_TO_WORD')) {
+            $detectedScript = 'HIRAGANA';
+        }
+
         if (! $detectedScript || ! in_array($detectedScript, $question->accepted_scripts, true)) {
             return response()->json(array_filter(['detectedScript' => $detectedScript, 'feedbackCode' => 'WRONG_SCRIPT']));
         }
 
-        $normalized = KanaConverter::normalize($rawInput, $detectedScript);
+        $normalized = KanaConverter::normalize($rawInput, $question->direction === 'MEANING_TO_WORD' ? 'KANJI' : $detectedScript);
         $isCorrect = $this->isCorrect($question, $rawInput, $normalized);
         $xpAwarded = $isCorrect ? $this->nextXp($session) : 0;
 
@@ -233,6 +247,12 @@ class SessionController extends Controller
                 'accepted_scripts' => [$script ?? 'HIRAGANA'],
                 'prompt' => fn (StudyItem $item): string => $item->romaji[0],
             ],
+            'WORD_WRITING' => [
+                'filters' => ['type' => 'WORD', 'jlpt_level' => 'N5'],
+                'direction' => 'MEANING_TO_WORD',
+                'accepted_scripts' => ['KANJI', 'HIRAGANA', 'KATAKANA'],
+                'prompt' => fn (StudyItem $item): string => implode('; ', $item->meanings_es),
+            ],
             'WORD_READING' => [
                 'filters' => ['type' => 'WORD', 'jlpt_level' => 'N5'],
                 'direction' => 'KANJI_TO_READING',
@@ -258,16 +278,42 @@ class SessionController extends Controller
             return $normalized === $question->item->glyph;
         }
 
-        return in_array($normalized, $this->readings($question->item), true);
+        if ($question->direction === 'MEANING_TO_WORD') {
+            return in_array($normalized, $this->writtenForms($question->item, StudyItem::where('type', 'WORD')->get()), true);
+        }
+
+        return in_array($normalized, array_map(fn (string $reading): string => mb_convert_kana($reading, 'c', 'UTF-8'), $this->readings($question->item)), true);
     }
 
     private function readings(StudyItem $item): array
     {
         if ($item->type === 'WORD') {
-            return array_map('trim', preg_split('/\\s*\\/\\s*/', $item->reading));
+            return $this->variants($item->reading);
         }
 
         return array_merge($item->onyomi ?? [], $item->kunyomi ?? []);
+    }
+
+    private function variants(string $value): array
+    {
+        return array_values(array_filter(array_map('trim', preg_split('/\\s*\\/\\s*/', $value))));
+    }
+
+    /** Every accepted written form: words with the same meanings are interchangeable. */
+    private function writtenForms(StudyItem $item, Collection $words): array
+    {
+        return $words->filter(fn (StudyItem $word): bool => $word->id === $item->id || $word->meanings_es === $item->meanings_es)
+            ->flatMap(fn (StudyItem $word): array => $this->variants($word->surface))
+            ->unique()->values()->all();
+    }
+
+    private function choicesFor(string $exercise, StudyItem $item, Collection $pool): array
+    {
+        $value = fn (StudyItem $word): string => $this->variants($exercise === 'WORD_WRITING' ? $word->surface : $word->reading)[0];
+        $accepted = $exercise === 'WORD_WRITING' ? $this->writtenForms($item, $pool) : $this->readings($item);
+        $distractors = $pool->map($value)->unique()->reject(fn (string $choice): bool => in_array($choice, $accepted, true))->shuffle()->take(3);
+
+        return $distractors->push($value($item))->shuffle()->values()->all();
     }
 
     private function nextXp(StudySession $session): int
@@ -332,6 +378,7 @@ class SessionController extends Controller
             'correctAnswer' => [
                 'kana' => $question->item->type === 'KANA' ? $question->item->glyph : $question->item->reading,
                 'romaji' => $question->item->type === 'KANA' ? $question->item->romaji[0] : null,
+                'surface' => $question->item->type === 'WORD' ? $question->item->surface : null,
             ],
             'feedbackCode' => $answer->is_correct ? 'CORRECT' : 'INCORRECT',
             'xpAwarded' => $answer->xp_awarded,
@@ -359,6 +406,7 @@ class SessionController extends Controller
                 'prompt' => $question->prompt,
                 'direction' => $question->direction,
                 'acceptedScripts' => $question->accepted_scripts,
+                ...($question->choices ? ['choices' => $question->choices] : []),
             ])->values(),
         ];
     }

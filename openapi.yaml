@@ -600,8 +600,8 @@ components:
       type: object
       required: [exercise]
       properties:
-        exercise: { type: string, enum: [KANA_READING, KANA_WRITING, KANJI_READING, WORD_READING] }
-        format: { type: string, enum: [CARD, CHOICE], default: CARD }
+        exercise: { type: string, enum: [KANA_READING, KANA_WRITING, KANJI_READING, WORD_READING, WORD_WRITING], description: 'WORD_WRITING shows the meaning and expects the word written with its kanji or kana. Words that share the same meanings are interchangeable answers.' }
+        format: { type: string, enum: [CARD, CHOICE], default: CARD, description: 'CHOICE adds four `choices` to every question. Only WORD_READING and WORD_WRITING support it; other exercises return 422.' }
         length: { type: integer, minimum: 1, maximum: 50, default: 10 }
         script: { type: string, enum: [HIRAGANA, KATAKANA], description: Applies to both kana exercises; defaults to HIRAGANA. }
         itemIds: { type: array, maxItems: 50, description: 'For KANJI_READING, each selected kanji also adds its example words to the question pool. Returns 422 when any id does not exist or does not match the exercise.', items: { type: string, format: uuid } }
@@ -625,10 +625,16 @@ components:
         itemId: { type: string, format: uuid }
         index: { type: integer, minimum: 1 }
         prompt: { type: string }
-        direction: { type: string, enum: [KANA_TO_ROMAJI, ROMAJI_TO_KANA, KANJI_TO_READING] }
+        direction: { type: string, enum: [KANA_TO_ROMAJI, ROMAJI_TO_KANA, KANJI_TO_READING, MEANING_TO_WORD] }
         acceptedScripts:
           type: array
-          items: { type: string, enum: [ROMAJI, HIRAGANA, KATAKANA] }
+          items: { type: string, enum: [ROMAJI, HIRAGANA, KATAKANA, KANJI] }
+        choices:
+          type: array
+          minItems: 4
+          maxItems: 4
+          description: Present only for CHOICE sessions. Shuffled options, one of which is correct; submit the selected text as `rawInput`.
+          items: { type: string }
     AnswerRequest:
       type: object
       required: [questionId, rawInput, idempotencyKey]
@@ -649,6 +655,7 @@ components:
           properties:
             kana: { type: [string, 'null'] }
             romaji: { type: [string, 'null'] }
+            surface: { type: [string, 'null'], description: The word as written; only for words. }
         feedbackCode: { type: string, enum: [CORRECT, INCORRECT, WRONG_SCRIPT, EMPTY] }
         xpAwarded: { type: integer, minimum: 0 }
         nextReviewAt: { type: [string, 'null'], format: date-time }
