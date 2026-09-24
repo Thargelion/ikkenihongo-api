@@ -236,4 +236,41 @@ class SessionTest extends TestCase
 
         $this->answer($user, $session, 0, 'コーヒー', 'r1')->assertJsonPath('feedbackCode', 'CORRECT');
     }
+
+    public function test_word_writing_prompt_follows_the_requested_language(): void
+    {
+        $user = User::factory()->create();
+        $word = StudyItem::create([
+            'source_key' => 'word:lang', 'type' => 'WORD', 'jlpt_level' => 'N5', 'surface' => '本',
+            'reading' => 'ほん', 'meanings_es' => ['Libro'], 'meanings_en' => ['Book'],
+        ]);
+        $create = fn (array $extra) => $this->actingAs($user, 'sanctum')->postJson('/api/sessions', [
+            'exercise' => 'WORD_WRITING', 'itemIds' => [$word->id], ...$extra,
+        ])->assertCreated()->json('questions.0.prompt');
+
+        $this->assertSame('Libro', $create([]));
+        $this->assertSame('Libro', $create(['lang' => 'es']));
+        $this->assertSame('Book', $create(['lang' => 'en']));
+        $this->actingAs($user, 'sanctum')->postJson('/api/sessions', ['exercise' => 'WORD_WRITING', 'lang' => 'fr'])
+            ->assertUnprocessable()->assertJsonValidationErrors('lang');
+    }
+
+    public function test_idempotency_keys_are_scoped_to_each_user(): void
+    {
+        $this->seed(N5CatalogSeeder::class);
+        $keyed = function (User $user) {
+            $session = $this->actingAs($user, 'sanctum')->postJson('/api/sessions', [
+                'exercise' => 'KANA_READING', 'length' => 1,
+            ])->assertCreated()->json();
+            $item = StudyItem::findOrFail($session['questions'][0]['itemId']);
+
+            return $this->actingAs($user, 'sanctum')->postJson("/api/sessions/{$session['id']}/answers", [
+                'questionId' => $session['questions'][0]['id'], 'rawInput' => $item->romaji[0], 'idempotencyKey' => 'shared-key',
+            ]);
+        };
+
+        $keyed(User::factory()->create())->assertOk()->assertJsonPath('feedbackCode', 'CORRECT');
+        $keyed(User::factory()->create())->assertOk()->assertJsonPath('feedbackCode', 'CORRECT');
+        $this->assertDatabaseCount('answers', 2);
+    }
 }

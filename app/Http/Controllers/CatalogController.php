@@ -42,6 +42,7 @@ class CatalogController extends Controller
                 'surface' => $word->surface,
                 'reading' => $word->reading,
                 'meaningsEs' => $word->meanings_es,
+                'meaningsEn' => $word->meanings_en,
             ])->values(),
         ]);
     }
@@ -69,6 +70,7 @@ class CatalogController extends Controller
             'glyph' => $item->glyph,
             'surface' => $item->surface,
             'meaningsEs' => $item->meanings_es,
+            'meaningsEn' => $item->meanings_en,
             'romaji' => $item->type === 'KANA' ? $item->romaji : null,
             'gridRow' => $item->type === 'KANA' ? (int) $item->kana_row : null,
             'gridColumn' => $item->type === 'KANA' ? (int) $item->kana_column : null,

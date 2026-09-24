@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\StudyItem;
 use App\Models\User;
 use Database\Seeders\N5CatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -44,5 +45,41 @@ class CatalogTest extends TestCase
         $this->actingAs($user, 'sanctum')->getJson('/api/kanji/'.urlencode('不存在'))->assertNotFound();
         $this->app['auth']->forgetGuards();
         $this->getJson('/api/kanji')->assertUnauthorized();
+    }
+
+    public function test_catalog_returns_spanish_and_english_meanings(): void
+    {
+        $this->seed(N5CatalogSeeder::class);
+        $user = User::factory()->create();
+
+        $meet = collect($this->actingAs($user, 'sanctum')->getJson('/api/words?jlpt=N5')->assertOk()->json())
+            ->firstWhere('surface', '会う');
+        $this->assertSame(['Encontrarse'], $meet['meaningsEs']);
+        $this->assertSame(['To meet'], $meet['meaningsEn']);
+
+        $this->actingAs($user, 'sanctum')->getJson('/api/kanji/'.rawurlencode('日'))->assertOk()
+            ->assertJsonPath('meaningsEs.0', 'Día')
+            ->assertJsonPath('meaningsEn.0', 'Day')
+            ->assertJsonStructure(['examples' => [['surface', 'reading', 'meaningsEs', 'meaningsEn']]]);
+    }
+
+    public function test_reseeding_updates_existing_rows_without_duplicating_them(): void
+    {
+        $old = StudyItem::create([
+            'source_key' => 'word:'.sha1('会う|あう|To meet'),
+            'type' => 'WORD',
+            'jlpt_level' => 'N5',
+            'surface' => '会う',
+            'reading' => 'あう',
+            'meanings_es' => ['To meet'],
+        ]);
+
+        $this->seed(N5CatalogSeeder::class);
+        $count = StudyItem::count();
+        $this->seed(N5CatalogSeeder::class);
+
+        $this->assertSame($count, StudyItem::count());
+        $this->assertSame(['Encontrarse'], $old->fresh()->meanings_es);
+        $this->assertSame(['To meet'], $old->fresh()->meanings_en);
     }
 }

@@ -279,6 +279,7 @@ paths:
                             surface: { type: string }
                             reading: { type: string, description: Hiragana }
                             meaningsEs: { type: array, items: { type: string } }
+                            meaningsEn: { type: [array, 'null'], items: { type: string } }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '404': { $ref: '#/components/responses/NotFound' }
   /api/words:
@@ -580,6 +581,10 @@ components:
         meaningsEs:
           type: array
           items: { type: string }
+        meaningsEn:
+          type: [array, 'null']
+          items: { type: string }
+          description: English meanings; null when not available.
         progress:
           anyOf:
             - type: object
@@ -606,6 +611,7 @@ components:
         script: { type: string, enum: [HIRAGANA, KATAKANA], description: Applies to both kana exercises; defaults to HIRAGANA. }
         itemIds: { type: array, maxItems: 50, description: 'For KANJI_READING, each selected kanji also adds its example words to the question pool. Returns 422 when any id does not exist or does not match the exercise.', items: { type: string, format: uuid } }
         jlpt: { type: string, enum: [N5, N4, N3, N2, N1] }
+        lang: { type: string, enum: [es, en], default: es, description: 'Language of WORD_WRITING prompts (the word meanings). Falls back to Spanish when a word has no English meaning.' }
     StudySession:
       type: object
       properties:
@@ -642,7 +648,7 @@ components:
         questionId: { type: string, format: uuid }
         rawInput: { type: string, maxLength: 255 }
         clientAnsweredAt: { type: string, format: date-time }
-        idempotencyKey: { type: string, maxLength: 255 }
+        idempotencyKey: { type: string, maxLength: 255, description: Unique per user; another user can reuse the same key. }
     AnswerResult:
       type: object
       properties:

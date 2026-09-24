@@ -34,7 +34,7 @@ class N5CatalogSeeder extends Seeder
 
     private function seedKanji(): void
     {
-        foreach ($this->rows('n5-kanji.tres') as [$glyph, $meanings]) {
+        foreach ($this->rows('n5-kanji.tres') as [$glyph, $meanings, $meaningsEs]) {
             [$onyomi, $kunyomi, $strokeCount] = $this->kanjiData()[$glyph];
             StudyItem::updateOrCreate(
                 ['source_key' => "kanji:$glyph"],
@@ -42,7 +42,8 @@ class N5CatalogSeeder extends Seeder
                     'type' => 'KANJI',
                     'jlpt_level' => 'N5',
                     'glyph' => $glyph,
-                    'meanings_es' => $this->meanings($meanings),
+                    'meanings_es' => $this->meanings($meaningsEs ?: $meanings),
+                    'meanings_en' => $this->meanings($meanings),
                     'onyomi' => $onyomi,
                     'kunyomi' => $kunyomi,
                     'stroke_count' => $strokeCount,
@@ -53,7 +54,7 @@ class N5CatalogSeeder extends Seeder
 
     private function seedWords(): void
     {
-        foreach ($this->rows('n5-vocabulary.tres') as [$surface, $reading, $meanings]) {
+        foreach ($this->rows('n5-vocabulary.tres') as [$surface, $reading, $meanings, $meaningsEs]) {
             StudyItem::updateOrCreate(
                 ['source_key' => 'word:'.sha1("$surface|$reading|$meanings")],
                 [
@@ -61,7 +62,8 @@ class N5CatalogSeeder extends Seeder
                     'jlpt_level' => 'N5',
                     'surface' => $surface ?: $reading,
                     'reading' => $reading,
-                    'meanings_es' => $this->meanings($meanings),
+                    'meanings_es' => $this->meanings($meaningsEs ?: $meanings),
+                    'meanings_en' => $this->meanings($meanings),
                 ],
             );
         }
@@ -70,34 +72,34 @@ class N5CatalogSeeder extends Seeder
     private function seedKanjiExamples(): void
     {
         foreach ([
-            '中' => [['中', 'なか', 'dentro'], ['中学校', 'ちゅうがっこう', 'escuela secundaria']],
-            '何' => [['何', 'なに', 'qué'], ['何時', 'なんじ', 'qué hora']],
-            '円' => [['円', 'えん', 'yen'], ['百円', 'ひゃくえん', 'cien yenes']],
-            '北' => [['北', 'きた', 'norte'], ['北口', 'きたぐち', 'salida norte']],
-            '千' => [['千', 'せん', 'mil'], ['千円', 'せんえん', 'mil yenes']],
-            '南' => [['南', 'みなみ', 'sur'], ['南口', 'みなみぐち', 'salida sur']],
-            '友' => [['友達', 'ともだち', 'amigo'], ['友人', 'ゆうじん', 'amistad']],
-            '右' => [['右', 'みぎ', 'derecha'], ['右手', 'みぎて', 'mano derecha']],
-            '土' => [['土', 'つち', 'tierra'], ['土曜日', 'どようび', 'sábado']],
-            '天' => [['天', 'てん', 'cielo'], ['天気', 'てんき', 'clima']],
-            '山' => [['山', 'やま', 'montaña'], ['火山', 'かざん', 'volcán']],
-            '川' => [['川', 'かわ', 'río'], ['川口', 'かわぐち', 'boca del río']],
-            '左' => [['左', 'ひだり', 'izquierda'], ['左手', 'ひだりて', 'mano izquierda']],
-            '東' => [['東', 'ひがし', 'este'], ['東京', 'とうきょう', 'Tokio']],
-            '校' => [['学校', 'がっこう', 'escuela'], ['校長', 'こうちょう', 'director escolar']],
-            '火' => [['火', 'ひ', 'fuego'], ['火曜日', 'かようび', 'martes']],
-            '西' => [['西', 'にし', 'oeste'], ['西口', 'にしぐち', 'salida oeste']],
-            '語' => [['日本語', 'にほんご', 'japonés'], ['語学', 'ごがく', 'idiomas']],
-            '読' => [['読む', 'よむ', 'leer'], ['読書', 'どくしょ', 'lectura']],
-            '長' => [['長い', 'ながい', 'largo'], ['校長', 'こうちょう', 'director escolar']],
-            '間' => [['時間', 'じかん', 'tiempo'], ['間', 'あいだ', 'intervalo']],
-            '雨' => [['雨', 'あめ', 'lluvia'], ['大雨', 'おおあめ', 'lluvia intensa']],
-            '高' => [['高い', 'たかい', 'alto'], ['高校', 'こうこう', 'escuela superior']],
+            '中' => [['中', 'なか', 'dentro', 'Inside'], ['中学校', 'ちゅうがっこう', 'escuela secundaria', 'Junior high school']],
+            '何' => [['何', 'なに', 'qué', 'What'], ['何時', 'なんじ', 'qué hora', 'What time']],
+            '円' => [['円', 'えん', 'yen', 'Yen'], ['百円', 'ひゃくえん', 'cien yenes', 'One hundred yen']],
+            '北' => [['北', 'きた', 'norte', 'North'], ['北口', 'きたぐち', 'salida norte', 'North exit']],
+            '千' => [['千', 'せん', 'mil', 'Thousand'], ['千円', 'せんえん', 'mil yenes', 'One thousand yen']],
+            '南' => [['南', 'みなみ', 'sur', 'South'], ['南口', 'みなみぐち', 'salida sur', 'South exit']],
+            '友' => [['友達', 'ともだち', 'amigo', 'Friend'], ['友人', 'ゆうじん', 'amistad', 'Friendship']],
+            '右' => [['右', 'みぎ', 'derecha', 'Right'], ['右手', 'みぎて', 'mano derecha', 'Right hand']],
+            '土' => [['土', 'つち', 'tierra', 'Earth'], ['土曜日', 'どようび', 'sábado', 'Saturday']],
+            '天' => [['天', 'てん', 'cielo', 'Heaven'], ['天気', 'てんき', 'clima', 'Weather']],
+            '山' => [['山', 'やま', 'montaña', 'Mountain'], ['火山', 'かざん', 'volcán', 'Volcano']],
+            '川' => [['川', 'かわ', 'río', 'River'], ['川口', 'かわぐち', 'boca del río', 'River mouth']],
+            '左' => [['左', 'ひだり', 'izquierda', 'Left'], ['左手', 'ひだりて', 'mano izquierda', 'Left hand']],
+            '東' => [['東', 'ひがし', 'este', 'East'], ['東京', 'とうきょう', 'Tokio', 'Tokyo']],
+            '校' => [['学校', 'がっこう', 'escuela', 'School'], ['校長', 'こうちょう', 'director escolar', 'School principal']],
+            '火' => [['火', 'ひ', 'fuego', 'Fire'], ['火曜日', 'かようび', 'martes', 'Tuesday']],
+            '西' => [['西', 'にし', 'oeste', 'West'], ['西口', 'にしぐち', 'salida oeste', 'West exit']],
+            '語' => [['日本語', 'にほんご', 'japonés', 'Japanese language'], ['語学', 'ごがく', 'idiomas', 'Language study']],
+            '読' => [['読む', 'よむ', 'leer', 'To read'], ['読書', 'どくしょ', 'lectura', 'Reading']],
+            '長' => [['長い', 'ながい', 'largo', 'Long'], ['校長', 'こうちょう', 'director escolar', 'School principal']],
+            '間' => [['時間', 'じかん', 'tiempo', 'Time'], ['間', 'あいだ', 'intervalo', 'Interval']],
+            '雨' => [['雨', 'あめ', 'lluvia', 'Rain'], ['大雨', 'おおあめ', 'lluvia intensa', 'Heavy rain']],
+            '高' => [['高い', 'たかい', 'alto', 'Tall; Expensive'], ['高校', 'こうこう', 'escuela superior', 'High school']],
         ] as $glyph => $examples) {
-            foreach ($examples as [$surface, $reading, $meaning]) {
+            foreach ($examples as [$surface, $reading, $meaning, $english]) {
                 StudyItem::updateOrCreate(['source_key' => "example:$glyph:$surface"], [
                     'type' => 'WORD', 'jlpt_level' => 'N5', 'surface' => $surface,
-                    'reading' => $reading, 'meanings_es' => [$meaning],
+                    'reading' => $reading, 'meanings_es' => [$meaning], 'meanings_en' => [$english],
                 ]);
             }
         }

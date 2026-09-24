@@ -22,6 +22,7 @@ class StudyItem extends Model
         return [
             'romaji' => 'array',
             'meanings_es' => 'array',
+            'meanings_en' => 'array',
             'onyomi' => 'array',
             'kunyomi' => 'array',
         ];
