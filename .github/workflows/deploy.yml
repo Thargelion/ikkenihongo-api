@@ -2,6 +2,11 @@ name: Deploy
 
 on:
   workflow_dispatch:
+    inputs:
+      bootstrap_state:
+        description: Generate FTP state for files already on the server without deploying
+        type: boolean
+        default: false
 
 concurrency:
   group: production-deploy
@@ -62,6 +67,7 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           server-dir: ${{ vars.FTP_SERVER_DIR }}
           timeout: 120000
+          dry-run: ${{ inputs.bootstrap_state }}
           exclude: |
             **/.env*
             **/.git*
@@ -83,5 +89,16 @@ jobs:
             .npmrc
             API y modelos.dc.html
 
+      - name: Save bootstrap state
+        if: ${{ inputs.bootstrap_state }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ftp-deploy-sync-state
+          path: .ftp-deploy-sync-state.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Verify deployment
+        if: ${{ !inputs.bootstrap_state }}
         run: curl --fail --silent --show-error --retry 3 --retry-delay 5 --retry-all-errors https://ikkeapi.fragua.com.ar/up
