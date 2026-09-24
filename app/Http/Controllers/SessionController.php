@@ -33,12 +33,13 @@ class SessionController extends Controller
             'itemIds' => ['nullable', 'array', 'max:50'],
             'itemIds.*' => ['uuid'],
             'jlpt' => ['nullable', 'in:N5,N4,N3,N2,N1'],
+            'lang' => ['nullable', 'in:es,en'],
         ]);
         $format = $data['format'] ?? 'CARD';
         if ($format === 'CHOICE' && ! in_array($data['exercise'], self::CHOICE_EXERCISES, true)) {
             throw ValidationException::withMessages(['format' => ['Multiple choice is only available for word exercises.']]);
         }
-        $config = $this->config($data['exercise'], $data['script'] ?? null);
+        $config = $this->config($data['exercise'], $data['script'] ?? null, $data['lang'] ?? 'es');
         $length = $data['length'] ?? 10;
         $items = StudyItem::query()->where($config['filters'])
             ->when($data['jlpt'] ?? null, fn ($query, $jlpt) => $query->where('jlpt_level', $jlpt))
@@ -148,7 +149,9 @@ class SessionController extends Controller
     {
         $question = $session->questions()->with(['item', 'answer', 'session'])->findOrFail($data['questionId']);
 
-        if ($answer = Answer::where('idempotency_key', $data['idempotencyKey'])->first()) {
+        $idempotencyKey = hash('sha256', $session->user_id.'|'.$data['idempotencyKey']);
+
+        if ($answer = Answer::where('idempotency_key', $idempotencyKey)->first()) {
             if ($answer->question_id !== $question->id) {
                 return response()->json(['message' => 'Idempotency key belongs to another answer.'], 409);
             }
@@ -180,7 +183,7 @@ class SessionController extends Controller
         $isCorrect = $this->isCorrect($question, $rawInput, $normalized);
         $xpAwarded = $isCorrect ? $this->nextXp($session) : 0;
 
-        $answer = DB::transaction(function () use ($question, $rawInput, $detectedScript, $normalized, $isCorrect, $xpAwarded, $data, $session): Answer {
+        $answer = DB::transaction(function () use ($question, $rawInput, $detectedScript, $normalized, $isCorrect, $xpAwarded, $idempotencyKey, $session): Answer {
             $answer = $question->answer()->create([
                 'raw_input' => $rawInput,
                 'detected_script' => $detectedScript,
@@ -188,7 +191,7 @@ class SessionController extends Controller
                 'is_correct' => $isCorrect,
                 'xp_awarded' => $xpAwarded,
                 'answered_at' => now(),
-                'idempotency_key' => $data['idempotencyKey'],
+                'idempotency_key' => $idempotencyKey,
             ]);
             $this->updateProgress($session, $question->item, $isCorrect);
             $session->increment('correct_count', $isCorrect ? 1 : 0);
@@ -232,7 +235,7 @@ class SessionController extends Controller
         ]);
     }
 
-    private function config(string $exercise, ?string $script): array
+    private function config(string $exercise, ?string $script, string $lang = 'es'): array
     {
         return match ($exercise) {
             'KANA_READING' => [
@@ -251,7 +254,7 @@ class SessionController extends Controller
                 'filters' => ['type' => 'WORD', 'jlpt_level' => 'N5'],
                 'direction' => 'MEANING_TO_WORD',
                 'accepted_scripts' => ['KANJI', 'HIRAGANA', 'KATAKANA'],
-                'prompt' => fn (StudyItem $item): string => implode('; ', $item->meanings_es),
+                'prompt' => fn (StudyItem $item): string => implode('; ', ($lang === 'en' ? $item->meanings_en : null) ?? $item->meanings_es),
             ],
             'WORD_READING' => [
                 'filters' => ['type' => 'WORD', 'jlpt_level' => 'N5'],
