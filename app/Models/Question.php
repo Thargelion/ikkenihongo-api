@@ -19,7 +19,7 @@ class Question extends Model
 
     protected function casts(): array
     {
-        return ['accepted_scripts' => 'array'];
+        return ['accepted_scripts' => 'array', 'choices' => 'array'];
     }
 
     public function session(): BelongsTo
