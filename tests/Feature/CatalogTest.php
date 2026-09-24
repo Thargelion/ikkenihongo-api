@@ -117,4 +117,26 @@ class CatalogTest extends TestCase
         $this->assertSame('あ', $intact->fresh()->glyph);
         $this->assertSame(1, StudyItem::where(['type' => 'KANA', 'script' => 'HIRAGANA', 'glyph' => 'が'])->count());
     }
+
+    public function test_every_kana_has_its_own_grid_cell_with_voiced_kana_below_the_gojuon_rows(): void
+    {
+        $this->seed(N5CatalogSeeder::class);
+        $user = User::factory()->create();
+
+        foreach (['HIRAGANA', 'KATAKANA'] as $script) {
+            $kana = collect($this->actingAs($user, 'sanctum')->getJson("/api/kana?script=$script")->assertOk()->json());
+            $cells = $kana->map(fn (array $item) => $item['gridRow'].','.$item['gridColumn']);
+
+            $this->assertCount(71, $kana);
+            $this->assertCount(71, $cells->unique(), "$script kana share grid cells");
+            $this->assertSame(0, $kana->min('gridColumn'));
+            $this->assertSame(4, $kana->max('gridColumn'));
+            $this->assertSame(14, $kana->max('gridRow'));
+            $by = $kana->keyBy('glyph');
+            $ka = $script === 'HIRAGANA' ? 'か' : 'カ';
+            $ga = $script === 'HIRAGANA' ? 'が' : 'ガ';
+            $this->assertSame([1, 0], [$by[$ka]['gridRow'], $by[$ka]['gridColumn']]);
+            $this->assertSame([10, 0], [$by[$ga]['gridRow'], $by[$ga]['gridColumn']]);
+        }
+    }
 }

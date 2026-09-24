@@ -144,9 +144,18 @@ class N5CatalogSeeder extends Seeder
         ];
         foreach ($rows as $row => $values) {
             $column = array_search($roman, $values, true);
-            if ($column !== false) {
-                return ['kana_row' => $row, 'kana_column' => $row === 7 ? [0, 2, 4][$column] : ($row === 9 ? [0, 3, 4][$column] : $column % 5)];
+            if ($column === false) {
+                continue;
             }
+
+            // Voiced (ga, za, da, ba) and semi-voiced (pa) kana get their own rows below the gojūon grid.
+            if ($column >= 5) {
+                return ['kana_row' => match (true) {
+                    $row === 1 => 10, $row === 2 => 11, $row === 3 => 12, $column < 10 => 13, default => 14,
+                }, 'kana_column' => $column % 5];
+            }
+
+            return ['kana_row' => $row, 'kana_column' => $row === 7 ? [0, 2, 4][$column] : ($row === 9 ? [0, 3, 4][$column] : $column)];
         }
 
         return ['kana_row' => 0, 'kana_column' => 0];

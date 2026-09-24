@@ -273,4 +273,23 @@ class SessionTest extends TestCase
         $keyed(User::factory()->create())->assertOk()->assertJsonPath('feedbackCode', 'CORRECT');
         $this->assertDatabaseCount('answers', 2);
     }
+
+    public function test_kana_writing_accepts_the_matching_syllabary_only(): void
+    {
+        $this->seed(N5CatalogSeeder::class);
+        $user = User::factory()->create();
+        $glyph = fn (string $script, string $kana) => StudyItem::where(['type' => 'KANA', 'script' => $script, 'glyph' => $kana])->firstOrFail();
+        $ask = fn (string $script, StudyItem $item) => $this->actingAs($user, 'sanctum')->postJson('/api/sessions', [
+            'exercise' => 'KANA_WRITING', 'script' => $script, 'itemIds' => [$item->id],
+        ])->assertCreated()->json();
+
+        $katakana = $ask('KATAKANA', $glyph('KATAKANA', 'ガ'));
+        $this->answer($user, $katakana, 0, 'が', 'kw-1')->assertJsonPath('feedbackCode', 'WRONG_SCRIPT');
+        $this->answer($user, $katakana, 0, 'ガ', 'kw-2')->assertJsonPath('feedbackCode', 'CORRECT');
+        $this->answer($user, $ask('KATAKANA', $glyph('KATAKANA', 'ガ')), 0, 'ギ', 'kw-3')->assertJsonPath('feedbackCode', 'INCORRECT');
+
+        $hiragana = $ask('HIRAGANA', $glyph('HIRAGANA', 'ぱ'));
+        $this->answer($user, $hiragana, 0, 'パ', 'hw-1')->assertJsonPath('feedbackCode', 'WRONG_SCRIPT');
+        $this->answer($user, $hiragana, 0, 'ぱ', 'hw-2')->assertJsonPath('feedbackCode', 'CORRECT');
+    }
 }
