@@ -65,6 +65,7 @@ jobs:
           exclude: |
             **/.env*
             **/.git*
+            **/.git*/**
             **/.github/**
             **/.agents/**
             **/.codex/**
@@ -78,6 +79,9 @@ jobs:
             **/pint.json
             **/*.md
             **/*.sh
+            .editorconfig
+            .npmrc
+            API y modelos.dc.html
 
       - name: Verify deployment
         run: curl --fail --silent --show-error --retry 3 --retry-delay 5 --retry-all-errors https://ikkeapi.fragua.com.ar/up
