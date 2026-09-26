@@ -108,6 +108,6 @@ class GoogleAuthenticationTest extends TestCase
         $user = User::factory()->create();
         $user->forceFill(['google_id' => 'g-123'])->save();
 
-        $this->actingAs($user)->getJson('/api/user')->assertJsonMissingPath('google_id');
+        $this->actingAs($user, 'sanctum')->getJson('/api/user')->assertJsonMissingPath('google_id');
     }
 }
