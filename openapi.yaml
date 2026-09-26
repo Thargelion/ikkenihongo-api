@@ -64,6 +64,24 @@ paths:
       responses:
         '204': { description: Authenticated }
         '422': { $ref: '#/components/responses/ValidationError' }
+  /auth/google/redirect:
+    get:
+      tags: [Authentication]
+      security: []
+      summary: Browser navigation that starts Google sign-in
+      responses:
+        '302': { description: Redirect to Google's consent screen }
+  /auth/google/callback:
+    get:
+      tags: [Authentication]
+      security: []
+      summary: Google redirect target that signs the user in
+      description: >
+        Requires a verified Google email. A signed-in guest is upgraded in place; if the email
+        already belongs to an account, that account is linked and signed in and the guest is
+        deleted. An unverified local account has its password rotated when linked.
+      responses:
+        '302': { description: 'Redirect to the SPA at /home on success, or /sign-in?error=google on failure' }
   /logout:
     post:
       tags: [Authentication]
