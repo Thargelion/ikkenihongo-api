@@ -53,7 +53,7 @@ class GoogleController extends Controller
     private function linkExisting(GoogleUser $google): ?User
     {
         $user = User::firstWhere('google_id', $google->getId())
-            ?? User::firstWhere('email', $google->getEmail());
+            ?? User::firstWhere('email', $this->email($google));
         if (! $user) {
             return null;
         }
@@ -71,9 +71,9 @@ class GoogleController extends Controller
     private function upgradeOrCreate(GoogleUser $google, ?User $guest): User
     {
         $attributes = [
-            'name' => $google->getName() ?: $google->getEmail(),
-            'nickname' => $google->getNickname() ?: $google->getName() ?: Str::before($google->getEmail(), '@'),
-            'email' => $google->getEmail(),
+            'name' => $google->getName() ?: $this->email($google),
+            'nickname' => $google->getNickname() ?: $google->getName() ?: Str::before($this->email($google), '@'),
+            'email' => $this->email($google),
             'google_id' => $google->getId(),
             'password' => Str::random(40),
             'is_guest' => false,
@@ -82,6 +82,11 @@ class GoogleController extends Controller
         $user->forceFill($attributes + ['email_verified_at' => now()])->save();
 
         return $user;
+    }
+
+    private function email(GoogleUser $google): string
+    {
+        return Str::lower($google->getEmail());
     }
 
     private function frontend(string $path): string

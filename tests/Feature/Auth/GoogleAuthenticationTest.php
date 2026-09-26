@@ -91,4 +91,23 @@ class GoogleAuthenticationTest extends TestCase
         $this->assertGuest();
         $this->assertDatabaseCount('users', 0);
     }
+
+    public function test_google_email_is_matched_case_insensitively(): void
+    {
+        $existing = User::factory()->create(['email' => 'aiko@example.com', 'email_verified_at' => now()]);
+        $this->fakeGoogle(['email' => 'Aiko@Example.com']);
+
+        $this->get('/auth/google/callback');
+
+        $this->assertAuthenticatedAs($existing->fresh());
+        $this->assertDatabaseCount('users', 1);
+    }
+
+    public function test_google_id_is_not_exposed_in_user_responses(): void
+    {
+        $user = User::factory()->create();
+        $user->forceFill(['google_id' => 'g-123'])->save();
+
+        $this->actingAs($user)->getJson('/api/user')->assertJsonMissingPath('google_id');
+    }
 }
