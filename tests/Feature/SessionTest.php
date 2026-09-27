@@ -226,15 +226,39 @@ class SessionTest extends TestCase
         ])->assertUnprocessable()->assertJsonValidationErrors('format');
     }
 
-    public function test_reading_accepts_katakana_readings(): void
+    public function test_reading_of_a_katakana_word_requires_romaji_with_long_vowels(): void
     {
         $user = User::factory()->create();
-        $coffee = $this->word('コーヒー', 'コーヒー', ['Coffee']);
+        $store = $this->word('デパート', 'デパート', ['Department store']);
         $session = $this->actingAs($user, 'sanctum')->postJson('/api/sessions', [
-            'exercise' => 'WORD_READING', 'itemIds' => [$coffee->id],
-        ])->assertCreated()->json();
+            'exercise' => 'WORD_READING', 'itemIds' => [$store->id],
+        ])->assertCreated()->assertJsonPath('questions.0.acceptedScripts', ['ROMAJI'])->json();
 
-        $this->answer($user, $session, 0, 'コーヒー', 'r1')->assertJsonPath('feedbackCode', 'CORRECT');
+        $this->answer($user, $session, 0, 'デパート', 'r0')->assertJsonPath('feedbackCode', 'WRONG_SCRIPT');
+        $this->answer($user, $session, 0, 'depaato', 'r1')->assertJsonPath('feedbackCode', 'CORRECT');
+    }
+
+    public function test_reading_of_a_kanji_word_accepts_kana_or_romaji(): void
+    {
+        $user = User::factory()->create();
+        $cat = $this->word('猫', 'ねこ', ['Cat']);
+        $session = $this->actingAs($user, 'sanctum')->postJson('/api/sessions', [
+            'exercise' => 'WORD_READING', 'itemIds' => [$cat->id],
+        ])->assertCreated()->assertJsonPath('questions.0.acceptedScripts', ['ROMAJI', 'HIRAGANA', 'KATAKANA'])->json();
+
+        $this->answer($user, $session, 0, 'neko', 'r1')->assertJsonPath('feedbackCode', 'CORRECT');
+    }
+
+    public function test_writing_a_katakana_word_requires_katakana(): void
+    {
+        $user = User::factory()->create();
+        $store = $this->word('デパート', 'デパート', ['Department store']);
+        $session = $this->actingAs($user, 'sanctum')->postJson('/api/sessions', [
+            'exercise' => 'WORD_WRITING', 'itemIds' => [$store->id],
+        ])->assertCreated()->assertJsonPath('questions.0.acceptedScripts', ['KATAKANA'])->json();
+
+        $this->answer($user, $session, 0, 'でぱーと', 'w0')->assertJsonPath('feedbackCode', 'WRONG_SCRIPT');
+        $this->answer($user, $session, 0, 'デパート', 'w1')->assertJsonPath('feedbackCode', 'CORRECT');
     }
 
     public function test_word_writing_prompt_follows_the_requested_language(): void

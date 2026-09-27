@@ -30,13 +30,45 @@ class KanaConverter
         'a' => 'あ', 'i' => 'い', 'u' => 'う', 'e' => 'え', 'o' => 'お',
     ];
 
+    private const VOWEL_ROWS = [
+        'あ' => 'ぁあかがさざただなはばぱまゃやらわ',
+        'い' => 'ぃいきぎしじちぢにひびぴみり',
+        'う' => 'ぅうくぐすずつづぬふぶぷむゅゆるゔ',
+        'え' => 'ぇえけげせぜてでねへべぺめれ',
+        'お' => 'ぉおこごそぞとどのほぼぽもょよろを',
+    ];
+
+    /** KATAKANA / HIRAGANA when the text is kana only, KANJI when it contains anything else. */
+    public static function scriptOf(string $text): string
+    {
+        if (preg_match('/^[ァ-ヺー\s\/]+$/u', $text)) {
+            return 'KATAKANA';
+        }
+
+        return preg_match('/^[ぁ-ゖー\s\/]+$/u', $text) ? 'HIRAGANA' : 'KANJI';
+    }
+
+    /** Hiragana only: replaces the long-vowel mark with the vowel it lengthens (でぱーと → でぱあと). */
+    public static function expandLongVowels(string $hiragana): string
+    {
+        return preg_replace_callback('/(.)ー/u', function (array $match): string {
+            foreach (self::VOWEL_ROWS as $vowel => $row) {
+                if (mb_strpos($row, $match[1]) !== false) {
+                    return $match[1].$vowel;
+                }
+            }
+
+            return $match[0];
+        }, $hiragana);
+    }
+
     public static function detect(string $input): ?string
     {
         if (preg_match('/[\x{3400}-\x{9fff}]/u', $input)) {
             return 'KANJI';
         }
 
-        if (preg_match('/^[A-Za-z\\s]+$/', $input)) {
+        if (preg_match('/^[A-Za-z\\s-]+$/', $input)) {
             return 'ROMAJI';
         }
 
@@ -64,12 +96,19 @@ class KanaConverter
 
     public static function romajiToHiragana(string $input): string
     {
-        $input = str_replace([' ', '-'], '', $input);
+        $input = str_replace(' ', '', $input);
         $result = '';
 
         while ($input !== '') {
             if (preg_match('/^([bcdfghjklmnpqrstvwxyz])\\1/', $input, $match) && $match[1] !== 'n') {
                 $result .= 'っ';
+                $input = substr($input, 1);
+
+                continue;
+            }
+
+            if ($input[0] === '-') {
+                $result .= 'ー';
                 $input = substr($input, 1);
 
                 continue;

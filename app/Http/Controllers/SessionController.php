@@ -77,13 +77,13 @@ class SessionController extends Controller
                 'started_at' => now(),
             ]);
 
-            $items->each(function (StudyItem $item, int $position) use ($session, $config, $data, $pool): void {
+            $items->each(function (StudyItem $item, int $position) use ($session, $config, $data, $pool, $format): void {
                 $session->questions()->create([
                     'study_item_id' => $item->id,
                     'position' => $position + 1,
                     'prompt' => $config['prompt']($item),
                     'direction' => $config['direction'],
-                    'accepted_scripts' => $config['accepted_scripts'],
+                    'accepted_scripts' => $this->acceptedScripts($config, $item, $format),
                     'choices' => $pool ? $this->choicesFor($data['exercise'], $item, $pool) : null,
                 ]);
             });
@@ -286,7 +286,25 @@ class SessionController extends Controller
             return in_array($normalized, $this->writtenForms($question->item, StudyItem::where('type', 'WORD')->get()), true);
         }
 
-        return in_array($normalized, array_map(fn (string $reading): string => mb_convert_kana($reading, 'c', 'UTF-8'), $this->readings($question->item)), true);
+        $expected = array_map(fn (string $reading): string => KanaConverter::expandLongVowels(mb_convert_kana($reading, 'c', 'UTF-8')), $this->readings($question->item));
+
+        return in_array(KanaConverter::expandLongVowels($normalized), $expected, true);
+    }
+
+    /** Kana-only words: typing the prompt back is no exercise, so reading asks for romaji and writing for the word's own syllabary. */
+    private function acceptedScripts(array $config, StudyItem $item, string $format): array
+    {
+        if ($format === 'CHOICE' || $item->type !== 'WORD') {
+            return $config['accepted_scripts'];
+        }
+
+        $script = KanaConverter::scriptOf($item->surface);
+
+        if ($script === 'KANJI') {
+            return $config['accepted_scripts'];
+        }
+
+        return $config['direction'] === 'MEANING_TO_WORD' ? [$script] : ['ROMAJI'];
     }
 
     private function readings(StudyItem $item): array
