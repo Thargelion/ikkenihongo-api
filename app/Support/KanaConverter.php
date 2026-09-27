@@ -30,21 +30,59 @@ class KanaConverter
         'a' => 'あ', 'i' => 'い', 'u' => 'う', 'e' => 'え', 'o' => 'お',
     ];
 
+    private const VOWEL_ROWS = [
+        'あ' => 'ぁあかがさざただなはばぱまゃやらわ',
+        'い' => 'ぃいきぎしじちぢにひびぴみり',
+        'う' => 'ぅうくぐすずつづぬふぶぷむゅゆるゔ',
+        'え' => 'ぇえけげせぜてでねへべぺめれ',
+        'お' => 'ぉおこごそぞとどのほぼぽもょよろを',
+    ];
+
+    /** True when the text has at least one kanji character (as opposed to kana only, in any mix of scripts). */
+    public static function containsKanji(string $text): bool
+    {
+        return (bool) preg_match('/[\x{3400}-\x{9fff}]/u', $text);
+    }
+
+    /** KATAKANA / HIRAGANA when the text is a single syllabary (plus whitespace and '/'), KANJI otherwise — including a kana text that mixes both syllabaries, since it has no single script to narrow to. */
+    public static function scriptOf(string $text): string
+    {
+        if (preg_match('/^[ァ-ヺー\s\/]+$/u', $text)) {
+            return 'KATAKANA';
+        }
+
+        return preg_match('/^[ぁ-ゖー\s\/]+$/u', $text) ? 'HIRAGANA' : 'KANJI';
+    }
+
+    /** Hiragana only: replaces the long-vowel mark with the vowel it lengthens (でぱーと → でぱあと). */
+    public static function expandLongVowels(string $hiragana): string
+    {
+        return preg_replace_callback('/(.)ー/u', function (array $match): string {
+            foreach (self::VOWEL_ROWS as $vowel => $row) {
+                if (mb_strpos($row, $match[1]) !== false) {
+                    return $match[1].$vowel;
+                }
+            }
+
+            return $match[0];
+        }, $hiragana);
+    }
+
     public static function detect(string $input): ?string
     {
-        if (preg_match('/[\x{3400}-\x{9fff}]/u', $input)) {
+        if (self::containsKanji($input)) {
             return 'KANJI';
         }
 
-        if (preg_match('/^[A-Za-z\\s]+$/', $input)) {
+        if (preg_match('/^[A-Za-z\\s-]+$/', $input)) {
             return 'ROMAJI';
         }
 
-        if (preg_match('/^[ぁ-ゖー\\s]+$/u', $input)) {
+        if (preg_match('/^[ぁ-ゖー\\s\\/]+$/u', $input)) {
             return 'HIRAGANA';
         }
 
-        if (preg_match('/^[ァ-ヺー\\s]+$/u', $input)) {
+        if (preg_match('/^[ァ-ヺー\\s\\/]+$/u', $input)) {
             return 'KATAKANA';
         }
 
@@ -60,6 +98,12 @@ class KanaConverter
             'KATAKANA' => mb_convert_kana(self::nfc($input), 'c', 'UTF-8'),
             default => self::nfc($input),
         };
+    }
+
+    /** Alternate long-vowel spelling (depa-to for depaato): doubles the vowel a hyphen follows, so it converts the same as the double-vowel form. Only meant for reading answers — leave romaji elsewhere ('-' stripped as a plain separator). */
+    public static function expandRomajiHyphens(string $input): string
+    {
+        return preg_replace('/([aeiou])-/i', '$1$1', $input);
     }
 
     public static function romajiToHiragana(string $input): string
