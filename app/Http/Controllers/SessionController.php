@@ -179,7 +179,9 @@ class SessionController extends Controller
             return response()->json(array_filter(['detectedScript' => $detectedScript, 'feedbackCode' => 'WRONG_SCRIPT']));
         }
 
-        $normalized = KanaConverter::normalize($rawInput, $question->direction === 'MEANING_TO_WORD' ? 'KANJI' : $detectedScript);
+        $isReading = $question->direction === 'KANJI_TO_READING';
+        $forNormalize = $isReading && $detectedScript === 'ROMAJI' ? KanaConverter::expandRomajiHyphens($rawInput) : $rawInput;
+        $normalized = KanaConverter::normalize($forNormalize, $question->direction === 'MEANING_TO_WORD' ? 'KANJI' : $detectedScript);
         $isCorrect = $this->isCorrect($question, $rawInput, $normalized);
         $xpAwarded = $isCorrect ? $this->nextXp($session) : 0;
 
@@ -294,7 +296,7 @@ class SessionController extends Controller
     /** Kana-only words: typing the prompt back is no exercise, so reading asks for romaji and writing for the word's own syllabary. */
     private function acceptedScripts(array $config, StudyItem $item, string $format): array
     {
-        if ($format === 'CHOICE' || $item->type !== 'WORD' || KanaConverter::containsKanji($item->surface)) {
+        if ($format === 'CHOICE' || $item->type !== 'WORD' || ! $item->surface || KanaConverter::containsKanji($item->surface)) {
             return $config['accepted_scripts'];
         }
 

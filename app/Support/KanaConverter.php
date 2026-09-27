@@ -100,21 +100,20 @@ class KanaConverter
         };
     }
 
+    /** Alternate long-vowel spelling (depa-to for depaato): doubles the vowel a hyphen follows, so it converts the same as the double-vowel form. Only meant for reading answers — leave romaji elsewhere ('-' stripped as a plain separator). */
+    public static function expandRomajiHyphens(string $input): string
+    {
+        return preg_replace('/([aeiou])-/i', '$1$1', $input);
+    }
+
     public static function romajiToHiragana(string $input): string
     {
-        $input = str_replace(' ', '', $input);
+        $input = str_replace([' ', '-'], '', $input);
         $result = '';
 
         while ($input !== '') {
             if (preg_match('/^([bcdfghjklmnpqrstvwxyz])\\1/', $input, $match) && $match[1] !== 'n') {
                 $result .= 'っ';
-                $input = substr($input, 1);
-
-                continue;
-            }
-
-            if ($input[0] === '-') {
-                $result .= 'ー';
                 $input = substr($input, 1);
 
                 continue;

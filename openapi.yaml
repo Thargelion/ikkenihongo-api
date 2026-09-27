@@ -652,7 +652,7 @@ components:
         direction: { type: string, enum: [KANA_TO_ROMAJI, ROMAJI_TO_KANA, KANJI_TO_READING, MEANING_TO_WORD] }
         acceptedScripts:
           type: array
-          description: Scripts the answer may use. For CARD word questions on kana-only words it is narrowed to `[ROMAJI]` (reading) or the word's own syllabary (writing); a mismatch returns `WRONG_SCRIPT` without consuming the attempt.
+          description: Scripts the answer may use. For CARD word questions on kana-only words it is narrowed to `[ROMAJI]` (reading) or, for writing, the word's own syllabary — `[HIRAGANA, KATAKANA]` when the surface mixes both; a mismatch returns `WRONG_SCRIPT` without consuming the attempt.
           items: { type: string, enum: [ROMAJI, HIRAGANA, KATAKANA, KANJI] }
         choices:
           type: array
