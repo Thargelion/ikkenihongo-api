@@ -38,7 +38,13 @@ class KanaConverter
         'お' => 'ぉおこごそぞとどのほぼぽもょよろを',
     ];
 
-    /** KATAKANA / HIRAGANA when the text is kana, whitespace and '/' only, KANJI when it contains anything else. */
+    /** True when the text has at least one kanji character (as opposed to kana only, in any mix of scripts). */
+    public static function containsKanji(string $text): bool
+    {
+        return (bool) preg_match('/[\x{3400}-\x{9fff}]/u', $text);
+    }
+
+    /** KATAKANA / HIRAGANA when the text is a single syllabary (plus whitespace and '/'), KANJI otherwise — including a kana text that mixes both syllabaries, since it has no single script to narrow to. */
     public static function scriptOf(string $text): string
     {
         if (preg_match('/^[ァ-ヺー\s\/]+$/u', $text)) {

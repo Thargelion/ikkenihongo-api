@@ -294,17 +294,18 @@ class SessionController extends Controller
     /** Kana-only words: typing the prompt back is no exercise, so reading asks for romaji and writing for the word's own syllabary. */
     private function acceptedScripts(array $config, StudyItem $item, string $format): array
     {
-        if ($format === 'CHOICE' || $item->type !== 'WORD') {
+        if ($format === 'CHOICE' || $item->type !== 'WORD' || KanaConverter::containsKanji($item->surface)) {
             return $config['accepted_scripts'];
         }
 
+        if ($config['direction'] !== 'MEANING_TO_WORD') {
+            return ['ROMAJI'];
+        }
+
+        // A word mixing both syllabaries (e.g. コピーする) has no single script to narrow writing to.
         $script = KanaConverter::scriptOf($item->surface);
 
-        if ($script === 'KANJI') {
-            return $config['accepted_scripts'];
-        }
-
-        return $config['direction'] === 'MEANING_TO_WORD' ? [$script] : ['ROMAJI'];
+        return $script === 'KANJI' ? $config['accepted_scripts'] : [$script];
     }
 
     private function readings(StudyItem $item): array
