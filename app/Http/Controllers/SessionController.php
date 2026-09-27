@@ -302,10 +302,11 @@ class SessionController extends Controller
             return ['ROMAJI'];
         }
 
-        // A word mixing both syllabaries (e.g. コピーする) has no single script to narrow writing to.
+        // A word mixing both syllabaries (e.g. コピーする) has no single script to narrow writing to,
+        // but it still has no kanji, so kanji input must not pass the script gate either.
         $script = KanaConverter::scriptOf($item->surface);
 
-        return $script === 'KANJI' ? $config['accepted_scripts'] : [$script];
+        return $script === 'KANJI' ? ['HIRAGANA', 'KATAKANA'] : [$script];
     }
 
     private function readings(StudyItem $item): array

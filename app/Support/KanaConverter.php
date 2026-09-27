@@ -70,7 +70,7 @@ class KanaConverter
 
     public static function detect(string $input): ?string
     {
-        if (preg_match('/[\x{3400}-\x{9fff}]/u', $input)) {
+        if (self::containsKanji($input)) {
             return 'KANJI';
         }
 

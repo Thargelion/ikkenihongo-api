@@ -261,6 +261,18 @@ class SessionTest extends TestCase
         $this->answer($user, $session, 0, 'kopi-suru', 'r1')->assertJsonPath('feedbackCode', 'CORRECT');
     }
 
+    public function test_writing_a_mixed_kana_word_rejects_kanji_as_wrong_script(): void
+    {
+        $user = User::factory()->create();
+        $copy = $this->word('コピーする', 'こぴーする', ['To copy']);
+        $session = $this->actingAs($user, 'sanctum')->postJson('/api/sessions', [
+            'exercise' => 'WORD_WRITING', 'itemIds' => [$copy->id],
+        ])->assertCreated()->assertJsonPath('questions.0.acceptedScripts', ['HIRAGANA', 'KATAKANA'])->json();
+
+        $this->answer($user, $session, 0, '本', 'w0')->assertJsonPath('feedbackCode', 'WRONG_SCRIPT');
+        $this->answer($user, $session, 0, 'コピーする', 'w1')->assertJsonPath('feedbackCode', 'CORRECT');
+    }
+
     public function test_reading_of_a_kanji_word_accepts_kana_or_romaji(): void
     {
         $user = User::factory()->create();
