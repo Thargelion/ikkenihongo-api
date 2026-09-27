@@ -296,6 +296,21 @@ class SessionTest extends TestCase
         $this->answer($user, $session, 0, 'デパート', 'w1')->assertJsonPath('feedbackCode', 'CORRECT');
     }
 
+    public function test_writing_a_word_with_a_slash_separated_katakana_variant_detects_the_script(): void
+    {
+        $user = User::factory()->create();
+        $kilo = $this->word('キロ/キログラム', 'きろ', ['Kilo']);
+        $ask = fn () => $this->actingAs($user, 'sanctum')->postJson('/api/sessions', [
+            'exercise' => 'WORD_WRITING', 'itemIds' => [$kilo->id],
+        ])->assertCreated()->assertJsonPath('questions.0.acceptedScripts', ['KATAKANA'])->json();
+
+        // Detected as KATAKANA (not null) despite the '/', so a wrong-but-katakana answer is INCORRECT, not WRONG_SCRIPT.
+        $this->answer($user, $ask(), 0, 'キロ/キログラム', 'w0')
+            ->assertJsonPath('feedbackCode', 'INCORRECT')
+            ->assertJsonPath('detectedScript', 'KATAKANA');
+        $this->answer($user, $ask(), 0, 'キロ', 'w1')->assertJsonPath('feedbackCode', 'CORRECT');
+    }
+
     public function test_word_writing_prompt_follows_the_requested_language(): void
     {
         $user = User::factory()->create();

@@ -78,11 +78,11 @@ class KanaConverter
             return 'ROMAJI';
         }
 
-        if (preg_match('/^[ぁ-ゖー\\s]+$/u', $input)) {
+        if (preg_match('/^[ぁ-ゖー\\s\\/]+$/u', $input)) {
             return 'HIRAGANA';
         }
 
-        if (preg_match('/^[ァ-ヺー\\s]+$/u', $input)) {
+        if (preg_match('/^[ァ-ヺー\\s\\/]+$/u', $input)) {
             return 'KATAKANA';
         }
 
