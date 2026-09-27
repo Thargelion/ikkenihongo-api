@@ -38,7 +38,7 @@ class KanaConverter
         'お' => 'ぉおこごそぞとどのほぼぽもょよろを',
     ];
 
-    /** KATAKANA / HIRAGANA when the text is kana only, KANJI when it contains anything else. */
+    /** KATAKANA / HIRAGANA when the text is kana, whitespace and '/' only, KANJI when it contains anything else. */
     public static function scriptOf(string $text): string
     {
         if (preg_match('/^[ァ-ヺー\s\/]+$/u', $text)) {

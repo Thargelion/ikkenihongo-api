@@ -238,6 +238,17 @@ class SessionTest extends TestCase
         $this->answer($user, $session, 0, 'depaato', 'r1')->assertJsonPath('feedbackCode', 'CORRECT');
     }
 
+    public function test_reading_of_a_katakana_word_accepts_the_hyphen_long_vowel_form(): void
+    {
+        $user = User::factory()->create();
+        $store = $this->word('デパート', 'デパート', ['Department store']);
+        $session = $this->actingAs($user, 'sanctum')->postJson('/api/sessions', [
+            'exercise' => 'WORD_READING', 'itemIds' => [$store->id],
+        ])->assertCreated()->json();
+
+        $this->answer($user, $session, 0, 'depa-to', 'r2')->assertJsonPath('feedbackCode', 'CORRECT');
+    }
+
     public function test_reading_of_a_kanji_word_accepts_kana_or_romaji(): void
     {
         $user = User::factory()->create();
