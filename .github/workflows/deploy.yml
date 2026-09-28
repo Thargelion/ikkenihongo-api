@@ -92,6 +92,7 @@ jobs:
             **/.agents/**
             **/.codex/**
             **/node_modules/**
+            **/public/avatars/**
             **/storage/**
             **/tests/**
             **/bootstrap/cache/config.php

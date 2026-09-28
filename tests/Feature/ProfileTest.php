@@ -19,7 +19,7 @@ class ProfileTest extends TestCase
 
     public function test_user_can_update_profile_details_and_avatar(): void
     {
-        Storage::fake('public');
+        Storage::fake('avatars');
         $user = User::factory()->create();
 
         $response = $this->actingAs($user, 'sanctum')->patch('/api/user', [
@@ -34,7 +34,37 @@ class ProfileTest extends TestCase
             'nickname' => 'nihongo-learner',
             'birthdate' => '2000-01-01 00:00:00',
         ]);
-        Storage::disk('public')->assertExists($response->json('avatar'));
+        Storage::disk('avatars')->assertExists($user->fresh()->avatar);
+        $this->assertNotNull($response->json('avatar_url'));
+    }
+
+    public function test_avatar_upload_is_rejected_when_too_large_or_oversized(): void
+    {
+        Storage::fake('avatars');
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user, 'sanctum')->patch('/api/user', [
+            'avatar' => UploadedFile::fake()->image('avatar.jpg', 2000, 2000)->size(600),
+        ]);
+
+        $response->assertInvalid(['avatar']);
+    }
+
+    public function test_sending_null_avatar_removes_existing_file(): void
+    {
+        Storage::fake('avatars');
+        $user = User::factory()->create();
+
+        $this->actingAs($user, 'sanctum')->patch('/api/user', [
+            'avatar' => UploadedFile::fake()->image('avatar.jpg'),
+        ]);
+        $path = $user->fresh()->avatar;
+        Storage::disk('avatars')->assertExists($path);
+
+        $response = $this->actingAs($user, 'sanctum')->patch('/api/user', ['avatar' => null]);
+
+        $response->assertOk()->assertJsonPath('avatar', null);
+        Storage::disk('avatars')->assertMissing($path);
     }
 
     public function test_user_can_get_summary_and_delete_progress(): void
