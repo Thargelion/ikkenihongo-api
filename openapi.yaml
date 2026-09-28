@@ -143,6 +143,9 @@ paths:
       tags: [Profile]
       security: [{ cookieAuth: [] }]
       summary: Update nickname, birthdate, or avatar
+      description: >-
+        Multipart bodies are not parsed on PATCH by PHP; send this as POST
+        with a `_method=PATCH` field instead.
       requestBody:
         required: true
         content:
@@ -514,7 +517,12 @@ components:
       properties:
         nickname: { type: string, maxLength: 255 }
         birthdate: { type: [string, 'null'], format: date }
-        avatar: { type: string, format: binary, description: Image up to 2 MiB; send null to remove. }
+        avatar:
+          {
+            type: [string, 'null'],
+            format: binary,
+            description: 'JPEG, PNG or WebP, up to 512 KiB and 1024x1024px; send null to remove.',
+          }
     User:
       type: object
       required: [id, name, nickname, email, is_guest, locale, created_at, updated_at]
@@ -524,7 +532,8 @@ components:
         nickname: { type: string }
         email: { type: string, format: email }
         birthdate: { type: [string, 'null'], format: date }
-        avatar: { type: [string, 'null'], description: Public storage path }
+        avatar: { type: [string, 'null'], description: Stored filename }
+        avatar_url: { type: [string, 'null'], format: uri }
         is_guest: { type: boolean }
         locale: { type: string, example: es }
         created_at: { type: string, format: date-time }
