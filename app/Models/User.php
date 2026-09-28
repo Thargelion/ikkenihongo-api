@@ -32,8 +32,20 @@ class User extends Authenticatable
     protected function avatarUrl(): Attribute
     {
         return Attribute::make(
-            get: fn (): ?string => $this->avatar ? Storage::disk('avatars')->url($this->avatar) : null,
+            get: fn (): ?string => $this->avatar
+                ? Storage::disk(self::avatarDisk($this->avatar))->url($this->avatar)
+                : null,
         )->shouldCache();
+    }
+
+    /**
+     * Avatars stored before the "avatars" disk existed live on the "public"
+     * disk under an "avatars/" prefix; new uploads are bare filenames on
+     * the "avatars" disk.
+     */
+    public static function avatarDisk(string $avatar): string
+    {
+        return str_starts_with($avatar, 'avatars/') ? 'public' : 'avatars';
     }
 
     /**

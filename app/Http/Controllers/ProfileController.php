@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -32,7 +33,7 @@ class ProfileController extends Controller
 
         if ($request->has('avatar')) {
             if ($user->avatar) {
-                Storage::disk('avatars')->delete($user->avatar);
+                Storage::disk(User::avatarDisk($user->avatar))->delete($user->avatar);
             }
 
             $data['avatar'] = $request->hasFile('avatar')

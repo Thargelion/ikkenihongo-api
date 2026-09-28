@@ -67,6 +67,24 @@ class ProfileTest extends TestCase
         Storage::disk('avatars')->assertMissing($path);
     }
 
+    public function test_legacy_avatar_path_resolves_url_and_deletes_from_the_old_disk(): void
+    {
+        Storage::fake('public');
+        Storage::fake('avatars');
+        $legacyPath = 'avatars/legacy.jpg';
+        Storage::disk('public')->put($legacyPath, 'fake-image-bytes');
+        $user = User::factory()->create(['avatar' => $legacyPath]);
+
+        $meResponse = $this->actingAs($user, 'sanctum')->getJson('/api/user');
+        $meResponse->assertOk();
+        $this->assertStringContainsString($legacyPath, $meResponse->json('avatar_url'));
+
+        $response = $this->actingAs($user, 'sanctum')->patch('/api/user', ['avatar' => null]);
+
+        $response->assertOk();
+        Storage::disk('public')->assertMissing($legacyPath);
+    }
+
     public function test_user_can_get_summary_and_delete_progress(): void
     {
         $this->seed(N5CatalogSeeder::class);
