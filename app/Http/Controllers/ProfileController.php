@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -18,18 +19,25 @@ class ProfileController extends Controller
         $data = $request->validate([
             'nickname' => ['sometimes', 'required', 'string', 'max:255'],
             'birthdate' => ['sometimes', 'nullable', 'date', 'before:today'],
-            'avatar' => ['sometimes', 'nullable', 'image', 'max:2048'],
+            'avatar' => [
+                'sometimes',
+                'nullable',
+                'image',
+                'mimes:jpeg,png,webp',
+                'dimensions:max_width=1024,max_height=1024',
+                'max:512',
+            ],
         ]);
 
         $user = $request->user();
 
         if ($request->has('avatar')) {
             if ($user->avatar) {
-                Storage::disk('public')->delete($user->avatar);
+                Storage::disk(User::avatarDisk($user->avatar))->delete($user->avatar);
             }
 
             $data['avatar'] = $request->hasFile('avatar')
-                ? $request->file('avatar')->store('avatars', 'public')
+                ? $request->file('avatar')->store('', 'avatars')
                 : null;
         }
 
